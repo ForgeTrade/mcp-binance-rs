@@ -13,4 +13,7 @@ pub use client::BinanceClient;
 pub use types::ServerTimeResponse;
 
 #[cfg(feature = "websocket")]
-pub use websocket::{BinanceWebSocketClient, DepthUpdate, TickerUpdate};
+pub use websocket::{
+    BalanceUpdate, BinanceWebSocketClient, DepthUpdate, ExecutionReport, OutboundAccountPosition,
+    TickerUpdate, UserDataEvent,
+};
