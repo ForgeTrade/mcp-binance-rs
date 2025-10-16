@@ -105,12 +105,36 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
         rate_limiter: rate_limiter.clone(),
     };
 
-    // Build router with all routes and middleware
+    // Create API v1 routes (protected by auth)
+    let api_routes = Router::new()
+        // Market data endpoints (Phase 3 - US1)
+        .route(
+            "/ticker/price",
+            axum::routing::get(routes::market_data::get_ticker_price),
+        )
+        .route(
+            "/ticker/24hr",
+            axum::routing::get(routes::market_data::get_ticker_24hr),
+        )
+        .route(
+            "/klines",
+            axum::routing::get(routes::market_data::get_klines),
+        )
+        .route("/depth", axum::routing::get(routes::market_data::get_depth))
+        .route(
+            "/trades",
+            axum::routing::get(routes::market_data::get_trades),
+        )
+        // Order endpoints will be added in Phase 4 (US2)
+        // Account endpoints will be added in Phase 5 (US3)
+        .with_state(state.clone());
+
+    // Build main router with health check and API routes
     Router::new()
         // Health check (no auth required)
         .route("/health", axum::routing::get(|| async { "OK" }))
-        // API routes will be added in Phase 3-5
-        // .nest("/api/v1", routes::create_api_routes())
+        // Mount API routes under /api/v1
+        .nest("/api/v1", api_routes)
         // Apply middleware layers (order matters: outer → inner)
         .layer(create_cors_layer()) // CORS (outermost)
         .layer(middleware::from_fn_with_state(

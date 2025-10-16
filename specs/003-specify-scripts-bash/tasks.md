@@ -77,16 +77,16 @@ curl -H "Authorization: Bearer test_token" \
 
 ### Implementation for User Story 1
 
-- [ ] T017 [P] [US1] Create src/http/routes/market_data.rs module file
-- [ ] T018 [P] [US1] Implement GET /api/v1/ticker/price handler in src/http/routes/market_data.rs (calls BinanceClient::get_ticker_price)
-- [ ] T019 [P] [US1] Implement GET /api/v1/ticker/24hr handler in src/http/routes/market_data.rs (calls BinanceClient::get_24hr_ticker)
-- [ ] T020 [P] [US1] Implement GET /api/v1/klines handler in src/http/routes/market_data.rs (calls BinanceClient::get_klines)
-- [ ] T021 [P] [US1] Implement GET /api/v1/depth handler in src/http/routes/market_data.rs (calls BinanceClient::get_order_book)
-- [ ] T022 [P] [US1] Implement GET /api/v1/trades handler in src/http/routes/market_data.rs (calls BinanceClient::get_recent_trades)
-- [ ] T023 [US1] Register market data routes in Router with auth middleware in src/http/mod.rs
-- [ ] T024 [US1] Add query parameter validation (symbol required, interval/limit optional) in market_data.rs handlers
-- [ ] T025 [US1] Add request tracing with tracing::info! for all market data endpoints
-- [ ] T026 [US1] Handle Binance API errors and convert to appropriate HTTP status codes (400/429/504)
+- [X] T017 [P] [US1] Create src/http/routes/market_data.rs module file
+- [X] T018 [P] [US1] Implement GET /api/v1/ticker/price handler in src/http/routes/market_data.rs (calls BinanceClient::get_ticker_price)
+- [X] T019 [P] [US1] Implement GET /api/v1/ticker/24hr handler in src/http/routes/market_data.rs (calls BinanceClient::get_24hr_ticker)
+- [X] T020 [P] [US1] Implement GET /api/v1/klines handler in src/http/routes/market_data.rs (calls BinanceClient::get_klines)
+- [X] T021 [P] [US1] Implement GET /api/v1/depth handler in src/http/routes/market_data.rs (calls BinanceClient::get_order_book)
+- [X] T022 [P] [US1] Implement GET /api/v1/trades handler in src/http/routes/market_data.rs (calls BinanceClient::get_recent_trades)
+- [X] T023 [US1] Register market data routes in Router with auth middleware in src/http/mod.rs
+- [X] T024 [US1] Add query parameter validation (symbol required, interval/limit optional) in market_data.rs handlers
+- [X] T025 [US1] Add request tracing with tracing::info! for all market data endpoints
+- [X] T026 [US1] Handle Binance API errors and convert to appropriate HTTP status codes (400/429/504)
 
 **Checkpoint**: Market data endpoints fully functional - can get prices, candles, order book, trades via HTTP
 
