@@ -57,6 +57,7 @@ axum = { version = "0.8.6", optional = true }
 
 # WebSocket Client - tokio-tungstenite for Binance streams (optional feature)
 tokio-tungstenite = { version = "0.28.0", optional = true }
+futures-util = { version = "0.3", optional = true }
 
 # Middleware - tower ecosystem for rate limiting, CORS, tracing
 tower = { version = "0.5.2", optional = true, features = ["limit", "buffer"] }
@@ -66,7 +67,7 @@ governor = { version = "0.6", optional = true }
 [features]
 default = []
 http-api = ["axum", "tower", "tower-http", "governor"]
-websocket = ["tokio-tungstenite"]
+websocket = ["tokio-tungstenite", "futures-util"]
 
 [profile.release]
 lto = true

@@ -5,6 +5,12 @@
 pub mod client;
 pub mod types;
 
+#[cfg(feature = "websocket")]
+pub mod websocket;
+
 // Re-export commonly used types
 pub use client::BinanceClient;
 pub use types::ServerTimeResponse;
+
+#[cfg(feature = "websocket")]
+pub use websocket::{BinanceWebSocketClient, TickerUpdate};
