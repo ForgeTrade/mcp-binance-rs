@@ -163,3 +163,45 @@ pub struct Trade {
     /// Was the trade the best price match?
     pub is_best_match: bool,
 }
+
+/// Balance information for an asset
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Balance {
+    /// Asset symbol (e.g., "BTC", "USDT")
+    pub asset: String,
+    /// Available balance
+    pub free: String,
+    /// Locked balance (in orders)
+    pub locked: String,
+}
+
+/// Response from /api/v3/account endpoint
+///
+/// Returns account information including balances and permissions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountInfo {
+    /// Maker commission rate
+    pub maker_commission: i64,
+    /// Taker commission rate
+    pub taker_commission: i64,
+    /// Buyer commission rate
+    pub buyer_commission: i64,
+    /// Seller commission rate
+    pub seller_commission: i64,
+    /// Can trade
+    pub can_trade: bool,
+    /// Can withdraw
+    pub can_withdraw: bool,
+    /// Can deposit
+    pub can_deposit: bool,
+    /// Account update time
+    pub update_time: i64,
+    /// Account type (e.g., "SPOT")
+    pub account_type: String,
+    /// List of asset balances
+    pub balances: Vec<Balance>,
+    /// Account permissions
+    pub permissions: Vec<String>,
+}

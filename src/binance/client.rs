@@ -1,36 +1,79 @@
 //! Binance HTTP Client
 //!
 //! HTTP client wrapper for making requests to Binance REST API.
-//! Provides timeout configuration and user-agent headers.
+//! Provides timeout configuration, user-agent headers, and request signing.
 
 use crate::binance::types::{
-    KlineData, OrderBook, ServerTimeResponse, Ticker24hr, TickerPrice, Trade,
+    AccountInfo, KlineData, OrderBook, ServerTimeResponse, Ticker24hr, TickerPrice, Trade,
 };
 use crate::error::McpError;
+use hmac::{Hmac, Mac};
 use reqwest::Client;
-use std::time::Duration;
+use sha2::Sha256;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+type HmacSha256 = Hmac<Sha256>;
 
 /// Binance REST API HTTP client
 ///
 /// Wraps reqwest::Client with Binance-specific configuration including
-/// timeouts, base URL, and user-agent headers.
-#[derive(Clone, Debug)]
+/// timeouts, base URL, user-agent headers, and API credentials for signing.
+#[derive(Clone)]
 pub struct BinanceClient {
     /// HTTP client for making requests
     pub(crate) client: Client,
     /// Base URL for Binance API (default: https://api.binance.com)
     pub(crate) base_url: String,
+    /// Optional API key for authenticated requests
+    pub(crate) api_key: Option<String>,
+    /// Optional API secret for request signing
+    pub(crate) api_secret: Option<String>,
+}
+
+impl std::fmt::Debug for BinanceClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BinanceClient")
+            .field("base_url", &self.base_url)
+            .field("api_key", &self.api_key.as_ref().map(|_| "***"))
+            .field("api_secret", &self.api_secret.as_ref().map(|_| "***"))
+            .finish()
+    }
 }
 
 impl BinanceClient {
-    /// Creates a new Binance client with default settings
+    /// Creates a new Binance client with default settings (no credentials)
     ///
     /// Default configuration:
     /// - Base URL: https://api.binance.com
     /// - Timeout: 10 seconds
     /// - User-Agent: mcp-binance-server/0.1.0
+    /// - No API credentials (public endpoints only)
     pub fn new() -> Self {
         Self::with_timeout(Duration::from_secs(10))
+    }
+
+    /// Creates a new Binance client with API credentials from environment
+    ///
+    /// Reads credentials from:
+    /// - `BINANCE_API_KEY` - API key for authenticated requests
+    /// - `BINANCE_API_SECRET` - API secret for signing requests
+    ///
+    /// # Returns
+    /// Client with credentials if both env vars are set, otherwise no credentials
+    pub fn with_credentials() -> Self {
+        let api_key = std::env::var("BINANCE_API_KEY").ok();
+        let api_secret = std::env::var("BINANCE_API_SECRET").ok();
+
+        Self {
+            client: Client::builder()
+                .timeout(Duration::from_secs(10))
+                .user_agent("mcp-binance-server/0.1.0")
+                .build()
+                .expect("Failed to create HTTP client"),
+            base_url: "https://api.binance.com".to_string(),
+            api_key,
+            api_secret,
+        }
     }
 
     /// Creates a new Binance client with custom timeout
@@ -55,12 +98,50 @@ impl BinanceClient {
         Self {
             client,
             base_url: "https://api.binance.com".to_string(),
+            api_key: None,
+            api_secret: None,
         }
     }
 
     /// Returns the configured base URL
     pub fn base_url(&self) -> &str {
         &self.base_url
+    }
+
+    /// Generates HMAC-SHA256 signature for request parameters
+    ///
+    /// # Arguments
+    /// * `query_string` - URL-encoded query string to sign
+    ///
+    /// # Returns
+    /// Hexadecimal signature string
+    ///
+    /// # Errors
+    /// Returns error if API secret is not configured
+    fn sign_request(&self, query_string: &str) -> Result<String, McpError> {
+        let secret = self
+            .api_secret
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API secret not configured".to_string()))?;
+
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            .map_err(|e| McpError::ParseError(format!("Invalid secret key: {}", e)))?;
+
+        mac.update(query_string.as_bytes());
+        let result = mac.finalize();
+        let signature = hex::encode(result.into_bytes());
+
+        Ok(signature)
+    }
+
+    /// Gets current timestamp in milliseconds
+    ///
+    /// Uses system time as milliseconds since Unix epoch
+    fn get_timestamp() -> Result<u64, McpError> {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .map_err(|e| McpError::ParseError(format!("System time error: {}", e)))
     }
 
     /// Fetches current Binance server time
@@ -298,6 +379,67 @@ impl BinanceClient {
 
         let trades: Vec<Trade> = response.json().await?;
         Ok(trades)
+    }
+
+    /// Get account information
+    ///
+    /// Calls GET /api/v3/account (requires API key and secret)
+    ///
+    /// Returns account balances, commission rates, and permissions.
+    /// Requires HMAC-SHA256 signature.
+    ///
+    /// # Returns
+    /// * `Ok(AccountInfo)` - Account information including balances
+    /// * `Err(McpError)` - Network error, authentication error, or API error
+    ///
+    /// # Errors
+    /// * `InvalidRequest` - API credentials not configured
+    /// * `ConnectionError` - Network failures or timeouts
+    ///
+    /// # Example
+    /// ```no_run
+    /// use mcp_binance_server::binance::client::BinanceClient;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = BinanceClient::with_credentials();
+    /// let account = client.get_account().await?;
+    /// println!("Account balances: {:?}", account.balances);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_account(&self) -> Result<AccountInfo, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        // Build query string with timestamp
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!("timestamp={}", timestamp);
+
+        // Sign the request
+        let signature = self.sign_request(&query_string)?;
+
+        // Build final URL with signature
+        let url = format!(
+            "{}/api/v3/account?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        // Make signed request with API key header
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let account: AccountInfo = response.json().await?;
+        Ok(account)
     }
 }
 
