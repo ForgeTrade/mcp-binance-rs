@@ -163,15 +163,15 @@ wscat -c 'ws://localhost:3000/ws/ticker/btcusdt' \
 
 ### Implementation for User Story 4
 
-- [ ] T047 [P] [US4] Create src/binance/websocket.rs module for Binance WebSocket client
-- [ ] T048 [P] [US4] Implement BinanceWebSocketClient struct with tokio-tungstenite connection in src/binance/websocket.rs
-- [ ] T049 [P] [US4] Implement connect_with_retry function with exponential backoff (100ms→30s) in src/binance/websocket.rs
-- [ ] T050 [P] [US4] Implement ticker stream subscription using tokio::sync::broadcast channel in src/binance/websocket.rs
-- [ ] T051 [US4] Create Binance→Server connection task that reads ticker messages and broadcasts to channel
-- [ ] T052 [P] [US4] Create src/http/websocket/ticker.rs for client WebSocket handler
-- [ ] T053 [P] [US4] Implement WebSocket upgrade handler for /ws/ticker/:symbol in src/http/websocket/ticker.rs
-- [ ] T054 [US4] Implement client message forwarding task (subscribe to broadcast, send to client WS)
-- [ ] T055 [US4] Register ticker WebSocket route in Router with auth middleware in src/http/mod.rs
+- [X] T047 [P] [US4] Create src/binance/websocket.rs module for Binance WebSocket client
+- [X] T048 [P] [US4] Implement BinanceWebSocketClient struct with tokio-tungstenite connection in src/binance/websocket.rs
+- [X] T049 [P] [US4] Implement connect_with_retry function with exponential backoff (100ms→30s) in src/binance/websocket.rs
+- [X] T050 [P] [US4] Implement ticker stream subscription using tokio::sync::broadcast channel in src/binance/websocket.rs
+- [X] T051 [US4] Create Binance→Server connection task that reads ticker messages and broadcasts to channel
+- [X] T052 [P] [US4] Create src/http/websocket/ticker.rs for client WebSocket handler
+- [X] T053 [P] [US4] Implement WebSocket upgrade handler for /ws/ticker/:symbol in src/http/websocket/ticker.rs
+- [X] T054 [US4] Implement client message forwarding task (subscribe to broadcast, send to client WS)
+- [X] T055 [US4] Register ticker WebSocket route in Router with auth middleware in src/http/mod.rs
 - [ ] T056 [US4] Add WebSocket connection limit enforcement (max 50 concurrent per SC-003)
 - [ ] T057 [US4] Handle client disconnection and unsubscribe from broadcast channel
 - [ ] T058 [US4] Add automatic reconnection to Binance on connection loss with subscription restore
