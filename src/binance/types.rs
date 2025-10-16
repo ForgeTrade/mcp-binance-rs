@@ -205,3 +205,93 @@ pub struct AccountInfo {
     /// Account permissions
     pub permissions: Vec<String>,
 }
+
+/// Order fill information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Fill {
+    /// Price of the fill
+    pub price: String,
+    /// Quantity of the fill
+    pub qty: String,
+    /// Commission paid for this fill
+    pub commission: String,
+    /// Commission asset
+    pub commission_asset: String,
+}
+
+/// Response from order creation/query endpoints
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Order {
+    /// Order symbol
+    pub symbol: String,
+    /// Order ID
+    pub order_id: i64,
+    /// Order list ID (for OCO orders)
+    #[serde(default)]
+    pub order_list_id: i64,
+    /// Client order ID
+    pub client_order_id: String,
+    /// Transaction time
+    #[serde(default)]
+    pub transact_time: i64,
+    /// Order price
+    #[serde(default)]
+    pub price: String,
+    /// Original quantity
+    #[serde(default)]
+    pub orig_qty: String,
+    /// Executed quantity
+    #[serde(default)]
+    pub executed_qty: String,
+    /// Cumulative quote quantity
+    #[serde(default)]
+    pub cummulative_quote_qty: String,
+    /// Order status (NEW, PARTIALLY_FILLED, FILLED, CANCELED, etc.)
+    pub status: String,
+    /// Time in force (GTC, IOC, FOK)
+    #[serde(default)]
+    pub time_in_force: String,
+    /// Order type (LIMIT, MARKET, STOP_LOSS, etc.)
+    #[serde(rename = "type")]
+    pub order_type: String,
+    /// Order side (BUY, SELL)
+    pub side: String,
+    /// List of fills (for market orders)
+    #[serde(default)]
+    pub fills: Vec<Fill>,
+}
+
+/// Response from /api/v3/myTrades endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyTrade {
+    /// Trade symbol
+    pub symbol: String,
+    /// Trade ID
+    pub id: i64,
+    /// Order ID
+    pub order_id: i64,
+    /// Order list ID
+    #[serde(default)]
+    pub order_list_id: i64,
+    /// Price
+    pub price: String,
+    /// Quantity
+    pub qty: String,
+    /// Quote quantity
+    pub quote_qty: String,
+    /// Commission
+    pub commission: String,
+    /// Commission asset
+    pub commission_asset: String,
+    /// Trade time
+    pub time: i64,
+    /// Is buyer
+    pub is_buyer: bool,
+    /// Is maker
+    pub is_maker: bool,
+    /// Is best match
+    pub is_best_match: bool,
+}

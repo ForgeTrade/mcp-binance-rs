@@ -4,7 +4,8 @@
 //! Provides timeout configuration, user-agent headers, and request signing.
 
 use crate::binance::types::{
-    AccountInfo, KlineData, OrderBook, ServerTimeResponse, Ticker24hr, TickerPrice, Trade,
+    AccountInfo, KlineData, MyTrade, Order, OrderBook, ServerTimeResponse, Ticker24hr, TickerPrice,
+    Trade,
 };
 use crate::error::McpError;
 use hmac::{Hmac, Mac};
@@ -440,6 +441,298 @@ impl BinanceClient {
 
         let account: AccountInfo = response.json().await?;
         Ok(account)
+    }
+
+    /// Create a new order
+    ///
+    /// Calls POST /api/v3/order (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `side` - Order side: "BUY" or "SELL"
+    /// * `order_type` - Order type: "LIMIT", "MARKET", etc.
+    /// * `quantity` - Order quantity as string
+    /// * `price` - Order price as string (required for LIMIT orders)
+    ///
+    /// # Returns
+    /// * `Ok(Order)` - Created order details
+    /// * `Err(McpError)` - Error if order creation fails
+    pub async fn create_order(
+        &self,
+        symbol: &str,
+        side: &str,
+        order_type: &str,
+        quantity: &str,
+        price: Option<&str>,
+    ) -> Result<Order, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut params = vec![
+            format!("symbol={}", symbol),
+            format!("side={}", side),
+            format!("type={}", order_type),
+            format!("quantity={}", quantity),
+            format!("timestamp={}", timestamp),
+        ];
+
+        // Add price for LIMIT orders
+        if let Some(p) = price {
+            params.push(format!("price={}", p));
+            params.push("timeInForce=GTC".to_string());
+        }
+
+        let query_string = params.join("&");
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .post(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Cancel an existing order
+    ///
+    /// Calls DELETE /api/v3/order (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `order_id` - Order ID to cancel
+    ///
+    /// # Returns
+    /// * `Ok(Order)` - Canceled order details
+    /// * `Err(McpError)` - Error if cancellation fails
+    pub async fn cancel_order(&self, symbol: &str, order_id: i64) -> Result<Order, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!(
+            "symbol={}&orderId={}&timestamp={}",
+            symbol, order_id, timestamp
+        );
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Query order status
+    ///
+    /// Calls GET /api/v3/order (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `order_id` - Order ID to query
+    ///
+    /// # Returns
+    /// * `Ok(Order)` - Order details
+    /// * `Err(McpError)` - Error if query fails
+    pub async fn query_order(&self, symbol: &str, order_id: i64) -> Result<Order, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!(
+            "symbol={}&orderId={}&timestamp={}",
+            symbol, order_id, timestamp
+        );
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Get all open orders for a symbol
+    ///
+    /// Calls GET /api/v3/openOrders (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Optional trading pair. If None, returns all open orders.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Order>)` - List of open orders
+    /// * `Err(McpError)` - Error if query fails
+    pub async fn get_open_orders(&self, symbol: Option<&str>) -> Result<Vec<Order>, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = if let Some(sym) = symbol {
+            format!("symbol={}&timestamp={}", sym, timestamp)
+        } else {
+            format!("timestamp={}", timestamp)
+        };
+
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/openOrders?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let orders: Vec<Order> = response.json().await?;
+        Ok(orders)
+    }
+
+    /// Get all orders (active, canceled, or filled) for a symbol
+    ///
+    /// Calls GET /api/v3/allOrders (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `limit` - Number of orders to return (default 500, max 1000)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Order>)` - List of all orders
+    /// * `Err(McpError)` - Error if query fails
+    pub async fn get_all_orders(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<Order>, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
+
+        if let Some(lim) = limit {
+            query_string.push_str(&format!("&limit={}", lim));
+        }
+
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/allOrders?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let orders: Vec<Order> = response.json().await?;
+        Ok(orders)
+    }
+
+    /// Get trade history for the account
+    ///
+    /// Calls GET /api/v3/myTrades (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `limit` - Number of trades to return (default 500, max 1000)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<MyTrade>)` - List of trades
+    /// * `Err(McpError)` - Error if query fails
+    pub async fn get_my_trades(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<MyTrade>, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
+
+        if let Some(lim) = limit {
+            query_string.push_str(&format!("&limit={}", lim));
+        }
+
+        let signature = self.sign_request(&query_string)?;
+        let url = format!(
+            "{}/api/v3/myTrades?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let trades: Vec<MyTrade> = response.json().await?;
+        Ok(trades)
     }
 }
 
