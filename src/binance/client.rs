@@ -734,6 +734,132 @@ impl BinanceClient {
         let trades: Vec<MyTrade> = response.json().await?;
         Ok(trades)
     }
+
+    /// Create a listen key for user data stream
+    ///
+    /// Calls POST /api/v3/userDataStream (requires API key)
+    ///
+    /// Creates a listen key valid for 60 minutes. The key must be kept alive
+    /// by calling `keepalive_listen_key` every 30 minutes.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Listen key for WebSocket user data stream
+    /// * `Err(McpError)` - Error if creation fails
+    ///
+    /// # Example
+    /// ```no_run
+    /// use mcp_binance_server::binance::client::BinanceClient;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = BinanceClient::with_credentials();
+    /// let listen_key = client.create_listen_key().await?;
+    /// println!("Listen key: {}", listen_key);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn create_listen_key(&self) -> Result<String, McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let url = format!("{}/api/v3/userDataStream", self.base_url);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct ListenKeyResponse {
+            #[serde(rename = "listenKey")]
+            listen_key: String,
+        }
+
+        let response_data: ListenKeyResponse = response.json().await?;
+        Ok(response_data.listen_key)
+    }
+
+    /// Keep alive a listen key
+    ///
+    /// Calls PUT /api/v3/userDataStream (requires API key)
+    ///
+    /// Extends the validity of the listen key by 60 minutes from the current time.
+    /// Must be called at least once every 30 minutes to prevent expiration.
+    ///
+    /// # Arguments
+    /// * `listen_key` - The listen key to keep alive
+    ///
+    /// # Returns
+    /// * `Ok(())` - Listen key successfully renewed
+    /// * `Err(McpError)` - Error if renewal fails
+    pub async fn keepalive_listen_key(&self, listen_key: &str) -> Result<(), McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let url = format!(
+            "{}/api/v3/userDataStream?listenKey={}",
+            self.base_url, listen_key
+        );
+
+        let response = self
+            .client
+            .put(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        Ok(())
+    }
+
+    /// Close a listen key
+    ///
+    /// Calls DELETE /api/v3/userDataStream (requires API key)
+    ///
+    /// Closes the user data stream and invalidates the listen key immediately.
+    ///
+    /// # Arguments
+    /// * `listen_key` - The listen key to close
+    ///
+    /// # Returns
+    /// * `Ok(())` - Listen key successfully closed
+    /// * `Err(McpError)` - Error if closure fails
+    pub async fn close_listen_key(&self, listen_key: &str) -> Result<(), McpError> {
+        let api_key = self
+            .api_key
+            .as_ref()
+            .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))?;
+
+        let url = format!(
+            "{}/api/v3/userDataStream?listenKey={}",
+            self.base_url, listen_key
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for BinanceClient {

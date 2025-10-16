@@ -157,6 +157,13 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
             "/myTrades",
             axum::routing::get(routes::account::get_my_trades),
         )
+        // User data stream endpoints (Phase 8 - US6)
+        .route(
+            "/userDataStream",
+            axum::routing::post(routes::account::create_user_data_stream)
+                .put(routes::account::keepalive_user_data_stream)
+                .delete(routes::account::close_user_data_stream),
+        )
         .with_state(state.clone());
 
     // Build main router with health check and API routes
