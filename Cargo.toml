@@ -56,6 +56,11 @@ opt-level = 3
 name = "integration"
 path = "tests/integration/mod.rs"
 
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
 [profile.dev]
 opt-level = 0
 debug = true
