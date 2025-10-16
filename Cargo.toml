@@ -52,6 +52,10 @@ codegen-units = 1
 strip = true
 opt-level = 3
 
+[[test]]
+name = "integration"
+path = "tests/integration/mod.rs"
+
 [profile.dev]
 opt-level = 0
 debug = true

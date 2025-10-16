@@ -213,7 +213,7 @@ Where:
 ## Phase 6: Integration & Testing
 
 ### T023 - MCP Protocol Testing
-- [ ] T023 [P1] [US1] Write MCP lifecycle integration test (file: tests/integration/mcp_lifecycle.rs)
+- [X] T023 [P1] [US1] Write MCP lifecycle integration test (file: tests/integration/mcp_lifecycle.rs)
   - Test: Send initialize request, verify response
   - Verify protocol_version = "2024-11-05"
   - Verify capabilities.tools present
@@ -221,20 +221,20 @@ Where:
   - Test: Send tools/list, verify get_server_time present
   - Test: Verify JSON Schema valid
 
-- [ ] T024 [P1] [US1] Test initialization without credentials (file: tests/integration/mcp_lifecycle.rs)
+- [X] T024 [P1] [US1] Test initialization without credentials (file: tests/integration/mcp_lifecycle.rs)
   - Unset BINANCE_API_KEY and BINANCE_SECRET_KEY
   - Start server, verify success
   - Check logs for WARN message
   - Verify server responds to initialize
 
-- [ ] T025 [P1] [US2] Write get_server_time tool test (file: tests/integration/server_time.rs)
+- [X] T025 [P1] [US2] Write get_server_time tool test (file: tests/integration/server_time.rs)
   - Test: Call get_server_time, verify success response
   - Verify serverTime is valid i64 timestamp
   - Verify time within ±60s of local time
   - Test: Mock network failure, verify error response
   - Test: Mock 429 rate limit, verify retry behavior
 
-- [ ] T026 [P1] [US3] Test credential security (file: tests/integration/security.rs)
+- [X] T026 [P1] [US3] Test credential security (file: tests/integration/security.rs)
   - Test: Set credentials, start server
   - Capture INFO logs, verify NO full API key
   - Verify only masked format: xxxx...yyyy
