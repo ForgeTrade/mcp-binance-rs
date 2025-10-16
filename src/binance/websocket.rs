@@ -211,7 +211,7 @@ impl Default for BinanceWebSocketClient {
 /// Ticker price update message from Binance WebSocket
 ///
 /// Received from the `<symbol>@ticker` stream every 1000ms
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TickerUpdate {
     /// Event type (always "24hrTicker")

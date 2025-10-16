@@ -149,11 +149,22 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
         .with_state(state.clone());
 
     // Build main router with health check and API routes
-    Router::new()
+    let mut router = Router::new()
         // Health check (no auth required)
         .route("/health", axum::routing::get(|| async { "OK" }))
         // Mount API routes under /api/v1
-        .nest("/api/v1", api_routes)
+        .nest("/api/v1", api_routes);
+
+    // Add WebSocket routes if websocket feature is enabled
+    #[cfg(all(feature = "http-api", feature = "websocket"))]
+    {
+        router = router.route(
+            "/ws/ticker/:symbol",
+            axum::routing::get(websocket::ticker_handler),
+        );
+    }
+
+    router
         // Apply middleware layers (order matters: outer → inner)
         .layer(create_cors_layer()) // CORS (outermost)
         .layer(middleware::from_fn_with_state(

@@ -11,4 +11,8 @@
 //! - tokio::sync::broadcast for fan-out to multiple subscribers
 //! - Automatic reconnection with exponential backoff
 
-// WebSocket implementation will be added in Phase 6-8
+#[cfg(all(feature = "http-api", feature = "websocket"))]
+pub mod ticker;
+
+#[cfg(all(feature = "http-api", feature = "websocket"))]
+pub use ticker::ticker_handler;
