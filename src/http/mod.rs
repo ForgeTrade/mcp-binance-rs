@@ -169,10 +169,15 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
     // Add WebSocket routes if websocket feature is enabled
     #[cfg(all(feature = "http-api", feature = "websocket"))]
     {
-        router = router.route(
-            "/ws/ticker/:symbol",
-            axum::routing::get(websocket::ticker_handler),
-        );
+        router = router
+            .route(
+                "/ws/ticker/:symbol",
+                axum::routing::get(websocket::ticker_handler),
+            )
+            .route(
+                "/ws/depth/:symbol",
+                axum::routing::get(websocket::depth_handler),
+            );
     }
 
     router
