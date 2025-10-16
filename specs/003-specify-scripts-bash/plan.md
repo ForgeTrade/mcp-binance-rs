@@ -283,9 +283,11 @@ Cargo.toml                  # UPDATED: Add http-api, websocket features
 
 **Prerequisites**: research.md complete
 
+**Note**: In final task ordering (tasks.md), documentation artifacts (data-model.md, contracts/, quickstart.md) are generated in Phase 9 (Polish) after implementation. This ensures documentation accurately reflects implemented behavior rather than planned behavior. Both approaches are valid; this note eliminates confusion between logical dependencies (plan.md) and execution order (tasks.md).
+
 ### 1.1 Data Model Design
 
-**File**: `specs/003-http-websocket-api/data-model.md`
+**File**: `specs/003-http-websocket-api/data-model.md` (generated in Phase 9, task T081)
 
 **Content**: Extract entities from spec.md Key Entities section:
 
@@ -338,7 +340,7 @@ Cargo.toml                  # UPDATED: Add http-api, websocket features
 
 ### 1.2 API Contracts
 
-**Directory**: `specs/003-http-websocket-api/contracts/`
+**Directory**: `specs/003-http-websocket-api/contracts/` (generated in Phase 9, tasks T082-T083)
 
 **Files**:
 - `openapi.yaml` - Full OpenAPI 3.1 specification
@@ -436,7 +438,7 @@ x-websocket-streams:
 
 ### 1.3 Quickstart Guide
 
-**File**: `specs/003-http-websocket-api/quickstart.md`
+**File**: `specs/003-http-websocket-api/quickstart.md` (generated in Phase 9, task T084)
 
 **Content**: Executable examples for each user story:
 
