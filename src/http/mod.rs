@@ -28,6 +28,10 @@ pub use middleware::{
     RateLimiter, TokenStore, check_rate_limit, create_cors_layer, validate_bearer_token,
 };
 
+/// Maximum concurrent WebSocket connections (per SC-003 requirement)
+#[cfg(all(feature = "http-api", feature = "websocket"))]
+const MAX_WS_CONNECTIONS: usize = 50;
+
 /// Shared application state passed to all HTTP handlers
 ///
 /// ## Fields
@@ -35,6 +39,7 @@ pub use middleware::{
 /// - `binance_client`: Arc-wrapped Binance API client for making requests
 /// - `token_store`: Arc-wrapped authentication token store
 /// - `rate_limiter`: Arc-wrapped rate limiter for global request limiting
+/// - `ws_connections`: Semaphore for limiting concurrent WebSocket connections (max 50)
 ///
 /// ## Usage
 ///
@@ -59,6 +64,10 @@ pub struct AppState {
 
     /// Rate limiter for global request limiting
     pub rate_limiter: RateLimiter,
+
+    /// WebSocket connection limit semaphore (max 50 concurrent)
+    #[cfg(feature = "websocket")]
+    pub ws_connections: Arc<tokio::sync::Semaphore>,
 }
 
 /// Create the main HTTP router with all middleware and routes
@@ -103,6 +112,8 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
         binance_client: Arc::new(BinanceClient::new()),
         token_store: token_store.clone(),
         rate_limiter: rate_limiter.clone(),
+        #[cfg(feature = "websocket")]
+        ws_connections: Arc::new(tokio::sync::Semaphore::new(MAX_WS_CONNECTIONS)),
     };
 
     // Create API v1 routes (protected by auth)

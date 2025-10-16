@@ -37,6 +37,10 @@ use tokio::sync::broadcast;
 /// ## Authentication
 /// Requires valid Bearer token in Authorization header
 ///
+/// ## Connection Limit
+/// Maximum 50 concurrent WebSocket connections (SC-003 requirement).
+/// Returns HTTP 503 if limit exceeded.
+///
 /// ## Example
 /// ```bash
 /// wscat -c 'ws://localhost:3000/ws/ticker/btcusdt' \
@@ -44,22 +48,47 @@ use tokio::sync::broadcast;
 /// ```
 #[cfg(all(feature = "http-api", feature = "websocket"))]
 pub async fn ticker_handler(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(symbol): Path<String>,
     ws: WebSocketUpgrade,
 ) -> Response {
     tracing::info!("WebSocket upgrade request for ticker: {}", symbol);
 
-    ws.on_upgrade(move |socket| handle_ticker_socket(socket, symbol))
+    // Try to acquire connection permit (non-blocking)
+    let permit = match state.ws_connections.try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            tracing::warn!("WebSocket connection limit reached (50 concurrent)");
+            return axum::response::Response::builder()
+                .status(503)
+                .header("Retry-After", "30")
+                .body("Service Unavailable: Maximum WebSocket connections reached".into())
+                .unwrap();
+        }
+    };
+
+    ws.on_upgrade(move |socket| handle_ticker_socket(socket, symbol, permit))
 }
 
 /// Handle individual ticker WebSocket connection
 ///
 /// Creates subscription to Binance ticker broadcast channel and
 /// forwards messages to client WebSocket.
+///
+/// ## Arguments
+/// - `socket`: WebSocket connection to the client
+/// - `symbol`: Trading pair symbol (e.g., "btcusdt")
+/// - `_permit`: Connection permit from semaphore (held until socket closes)
 #[cfg(all(feature = "http-api", feature = "websocket"))]
-async fn handle_ticker_socket(socket: WebSocket, symbol: String) {
-    tracing::info!("Ticker WebSocket connected for {}", symbol);
+async fn handle_ticker_socket(
+    socket: WebSocket,
+    symbol: String,
+    _permit: tokio::sync::OwnedSemaphorePermit,
+) {
+    tracing::info!(
+        "Ticker WebSocket connected for {} (permit acquired)",
+        symbol
+    );
 
     // Create broadcast channel for this symbol
     // Channel size of 100 messages to handle bursts
@@ -128,5 +157,9 @@ async fn handle_ticker_socket(socket: WebSocket, symbol: String) {
         },
     }
 
-    tracing::info!("Ticker WebSocket disconnected for {}", symbol);
+    tracing::info!(
+        "Ticker WebSocket disconnected for {} (permit released)",
+        symbol
+    );
+    // Permit is automatically released when _permit is dropped
 }
