@@ -104,19 +104,37 @@ async fn handle_depth_socket(
     let (mut sender, mut receiver) = socket.split();
 
     // Spawn task to forward broadcast messages to client
+    let symbol_for_task = symbol.clone();
     let mut send_task = tokio::spawn(async move {
-        while let Ok(update) = rx.recv().await {
-            // Serialize depth update to JSON
-            match serde_json::to_string(&update) {
-                Ok(json) => {
-                    // Send to client
-                    if sender.send(Message::Text(json.into())).await.is_err() {
-                        tracing::info!("Client disconnected");
-                        break;
+        loop {
+            match rx.recv().await {
+                Ok(update) => {
+                    // Serialize depth update to JSON
+                    match serde_json::to_string(&update) {
+                        Ok(json) => {
+                            // Send to client
+                            if sender.send(Message::Text(json.into())).await.is_err() {
+                                tracing::info!("Client disconnected");
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to serialize depth update: {}", e);
+                        }
                     }
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to serialize depth update: {}", e);
+                Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                    // Client is falling behind - log warning for T068
+                    tracing::warn!(
+                        "Depth stream lagging for {}: {} messages skipped",
+                        symbol_for_task,
+                        skipped
+                    );
+                    // Continue receiving after lag
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    tracing::info!("Depth broadcast channel closed");
+                    break;
                 }
             }
         }
