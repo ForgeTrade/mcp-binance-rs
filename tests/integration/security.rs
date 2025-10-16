@@ -110,6 +110,7 @@ fn test_secret_string_does_not_derive_serialize() {
     // If it does, this test will fail to compile
     use mcp_binance_server::config::credentials::SecretString;
 
+    #[allow(dead_code)]
     fn assert_not_serialize<T: ?Sized>() {}
 
     let secret = SecretString::new("test".to_string());

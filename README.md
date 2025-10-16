@@ -4,9 +4,13 @@ A Model Context Protocol (MCP) server for Binance API integration, enabling AI a
 
 ## Features
 
+- **Dual Transport**: HTTP REST API + WebSocket streams OR MCP stdio protocol
+- **REST API**: 15 endpoints for market data, orders, and account management
+- **WebSocket Streams**: Real-time ticker, order book depth, and user data updates
 - **MCP Protocol Compliance**: Full implementation of MCP lifecycle (initialize → tools → execution)
 - **Secure Credential Management**: API keys loaded from environment variables, never logged
-- **Binance API Integration**: Currently supports `get_server_time` tool for connectivity validation
+- **Bearer Token Authentication**: Secure HTTP access with configurable tokens
+- **Rate Limiting**: Automatic request throttling (100 req/min default)
 - **Async-First**: Built on Tokio for high-performance concurrent operations
 - **Type-Safe**: Rust type system ensures correctness and prevents entire classes of bugs
 
@@ -42,9 +46,54 @@ export BINANCE_SECRET_KEY="your_secret_key_here"
 
 ## Usage
 
-### Standalone Mode
+### HTTP REST API + WebSocket Mode
+
+The server can run as an HTTP REST API and WebSocket server for direct API access:
 
 ```bash
+# Build with HTTP and WebSocket features
+cargo build --release --features http-api,websocket
+
+# Configure HTTP server
+export HTTP_BEARER_TOKEN="your_secure_token_here"  # Required for authentication
+export HTTP_HOST="0.0.0.0"                        # Optional, default: 127.0.0.1
+export HTTP_PORT="3000"                           # Optional, default: 8080
+export HTTP_RATE_LIMIT="100"                      # Optional, requests/min, default: 100
+export MAX_WS_CONNECTIONS="50"                    # Optional, default: 50
+
+# Start HTTP server
+./target/release/mcp-binance-server
+```
+
+**API Documentation**: See [specs/003-specify-scripts-bash/quickstart.md](specs/003-specify-scripts-bash/quickstart.md) for complete API usage with examples.
+
+**Key Features**:
+- **REST API**: 15 endpoints for market data, orders, and account info
+- **WebSocket Streams**: Real-time price, order book, and user data updates
+- **Bearer Token Auth**: All endpoints require `Authorization: Bearer <token>` header
+- **Rate Limiting**: 100 requests/minute (configurable)
+- **Connection Limits**: Max 50 concurrent WebSocket connections
+
+**Example REST API Request**:
+```bash
+curl -H "Authorization: Bearer your_token" \
+  'http://localhost:3000/api/v1/ticker/price?symbol=BTCUSDT'
+```
+
+**Example WebSocket Stream**:
+```bash
+wscat -c 'ws://localhost:3000/ws/ticker/btcusdt' \
+  -H "Authorization: Bearer your_token"
+```
+
+### MCP Stdio Mode (Claude Desktop)
+
+For Model Context Protocol integration with Claude Desktop:
+
+```bash
+# Build default (stdio MCP server)
+cargo build --release
+
 # Run with default logging (INFO)
 ./target/release/mcp-binance-server
 

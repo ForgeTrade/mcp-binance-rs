@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 /// Metadata associated with an authentication token
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TokenMetadata {
     /// Human-readable name/identifier for this token
     pub name: String,

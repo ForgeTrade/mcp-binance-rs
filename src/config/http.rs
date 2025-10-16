@@ -68,11 +68,14 @@ mod tests {
     #[test]
     fn test_default_values() {
         // This test requires HTTP_BEARER_TOKEN to be set
-        std::env::set_var("HTTP_BEARER_TOKEN", "test_token_12345");
-        std::env::remove_var("HTTP_HOST");
-        std::env::remove_var("HTTP_PORT");
-        std::env::remove_var("HTTP_RATE_LIMIT");
-        std::env::remove_var("HTTP_MAX_WEBSOCKET_CONNECTIONS");
+        // SAFETY: Test-only code, single-threaded test environment
+        unsafe {
+            std::env::set_var("HTTP_BEARER_TOKEN", "test_token_12345");
+            std::env::remove_var("HTTP_HOST");
+            std::env::remove_var("HTTP_PORT");
+            std::env::remove_var("HTTP_RATE_LIMIT");
+            std::env::remove_var("HTTP_MAX_WEBSOCKET_CONNECTIONS");
+        }
 
         let config = HttpConfig::from_env().expect("Failed to load config");
 

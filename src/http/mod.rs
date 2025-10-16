@@ -178,11 +178,11 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
     {
         router = router
             .route(
-                "/ws/ticker/:symbol",
+                "/ws/ticker/{symbol}",
                 axum::routing::get(websocket::ticker_handler),
             )
             .route(
-                "/ws/depth/:symbol",
+                "/ws/depth/{symbol}",
                 axum::routing::get(websocket::depth_handler),
             )
             .route("/ws/user", axum::routing::get(websocket::user_data_handler));

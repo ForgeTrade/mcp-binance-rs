@@ -6,6 +6,10 @@ Auto-generated from all feature plans. Last updated: 2025-10-16
 - Rust 1.90+ (Edition 2024) - Updated from 1.75+ with 2021 edition
 - rmcp 0.8.1 - MCP Server SDK with macros
 - tokio 1.48.0 - Async runtime with full features
+- axum 0.8+ - HTTP server framework (003-specify-scripts-bash)
+- tokio-tungstenite 0.26+ - WebSocket client (003-specify-scripts-bash)
+- tower 0.5+ - Middleware stack (003-specify-scripts-bash)
+- tower-http 0.6+ - HTTP-specific middleware (003-specify-scripts-bash)
 - reqwest 0.12.24 - HTTP client (json + rustls-tls)
 - serde 1.0.228 + serde_json 1.0.145 - Serialization
 - schemars 1.0.4 - JSON Schema generation
@@ -19,7 +23,10 @@ tests/
 ```
 
 ## Commands
-cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] cargo clippy
+cargo build --features http,websocket
+cargo run --features http,websocket
+cargo test
+cargo clippy
 
 ## Code Style
 Rust 1.75+ (Edition 2024): Follow standard conventions
@@ -32,10 +39,10 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
 - See constitution.md § Dependency Management for full policy
 
 ## Recent Changes
+- 003-specify-scripts-bash: Added HTTP REST API and WebSocket support (axum 0.8+, tokio-tungstenite 0.26+, tower 0.5+, tower-http 0.6+)
+- 003-specify-scripts-bash: Added Rust 1.90+ (Edition 2024)
 - 2025-10-16: Updated all dependencies to latest versions (rmcp 0.8.1, tokio 1.48.0, reqwest 0.12.24, serde 1.0.228, serde_json 1.0.145, schemars 1.0.4, thiserror 2.0.17, tracing 0.1.41, tracing-subscriber 0.3.20)
 - 2025-10-16: Upgraded Rust edition from 2021 to 2024
-- 2025-10-16: Added Dependency Management section to constitution (v1.1.0)
-- 001-mcp-server-foundation: Added Rust 1.75+ (Edition 2024)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

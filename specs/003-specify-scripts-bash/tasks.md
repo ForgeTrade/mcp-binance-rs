@@ -221,18 +221,18 @@ wscat -c 'ws://localhost:3000/ws/user' \
 
 ### Implementation for User Story 6
 
-- [ ] T069 [P] [US6] Implement listen key creation endpoint GET /api/v1/userDataStream in src/http/routes/account.rs
-- [ ] T070 [P] [US6] Implement listen key keepalive task (PUT every 30 minutes to prevent expiry)
-- [ ] T071 [P] [US6] Implement user data stream subscription in src/binance/websocket.rs using listen key
-- [ ] T072 [P] [US6] Create Binance→Server connection task for user data stream with per-user broadcast channels
-- [ ] T073 [P] [US6] Create src/http/websocket/user_data.rs for authenticated user stream handler
-- [ ] T074 [P] [US6] Implement WebSocket upgrade handler for /ws/user in src/http/websocket/user_data.rs
-- [ ] T075 [US6] Implement user-specific message forwarding task (auth → get listen key → subscribe → send)
-- [ ] T076 [US6] Register user data WebSocket route in Router with auth middleware in src/http/mod.rs
-- [ ] T077 [US6] Handle executionReport events (order updates) and format for client
-- [ ] T078 [US6] Handle outboundAccountPosition events (balance updates) and format for client
-- [ ] T079 [US6] Add automatic listen key renewal before 60-minute expiry
-- [ ] T080 [US6] Clean up user-specific broadcast channel on client disconnect
+- [X] T069 [P] [US6] Implement listen key creation endpoint GET /api/v1/userDataStream in src/http/routes/account.rs
+- [X] T070 [P] [US6] Implement listen key keepalive task (PUT every 30 minutes to prevent expiry)
+- [X] T071 [P] [US6] Implement user data stream subscription in src/binance/websocket.rs using listen key
+- [X] T072 [P] [US6] Create Binance→Server connection task for user data stream with per-user broadcast channels
+- [X] T073 [P] [US6] Create src/http/websocket/user_data.rs for authenticated user stream handler
+- [X] T074 [P] [US6] Implement WebSocket upgrade handler for /ws/user in src/http/websocket/user_data.rs
+- [X] T075 [US6] Implement user-specific message forwarding task (auth → get listen key → subscribe → send)
+- [X] T076 [US6] Register user data WebSocket route in Router with auth middleware in src/http/mod.rs
+- [X] T077 [US6] Handle executionReport events (order updates) and format for client
+- [X] T078 [US6] Handle outboundAccountPosition events (balance updates) and format for client
+- [X] T079 [US6] Add automatic listen key renewal before 60-minute expiry
+- [X] T080 [US6] Clean up user-specific broadcast channel on client disconnect
 
 **Checkpoint**: User data stream fully functional - real-time order/balance notifications work independently
 
@@ -242,20 +242,20 @@ wscat -c 'ws://localhost:3000/ws/user' \
 
 **Purpose**: Documentation, validation, and final improvements across all stories
 
-- [ ] T081 [P] Create specs/003-specify-scripts-bash/data-model.md documenting all REST/WebSocket message types
-- [ ] T082 [P] Create specs/003-specify-scripts-bash/contracts/openapi.yaml with full REST API specification
-- [ ] T083 [P] Add WebSocket protocol documentation to contracts/websocket-streams.md
-- [ ] T084 [P] Create specs/003-specify-scripts-bash/quickstart.md with curl/wscat examples for all 6 user stories
-- [ ] T085 [P] Update CLAUDE.md via .specify/scripts/bash/update-agent-context.sh with axum, tokio-tungstenite, tower
-- [ ] T086 Add comprehensive error messages with error codes to all HTTP endpoints
-- [ ] T087 Add Retry-After header to HTTP 429 responses per FR-010
-- [ ] T088 Add request tracing IDs (FR-019) to all responses
-- [ ] T089 Validate all HTTP endpoints against OpenAPI spec for consistency
-- [ ] T090 Run cargo clippy and fix all warnings
-- [ ] T091 Run cargo fmt to format all new code
-- [ ] T092 Validate quickstart.md examples work end-to-end
-- [ ] T093 Update project README.md with HTTP server usage instructions
-- [ ] T094 [P] Validate WebSocket connection limit enforcement by testing 50+ concurrent connections in tests/integration/websocket_limits_test.rs
+- [X] T081 [P] Create specs/003-specify-scripts-bash/data-model.md documenting all REST/WebSocket message types
+- [X] T082 [P] Create specs/003-specify-scripts-bash/contracts/openapi.yaml with full REST API specification
+- [X] T083 [P] Add WebSocket protocol documentation to contracts/websocket-streams.md
+- [X] T084 [P] Create specs/003-specify-scripts-bash/quickstart.md with curl/wscat examples for all 6 user stories
+- [X] T085 [P] Update CLAUDE.md via .specify/scripts/bash/update-agent-context.sh with axum, tokio-tungstenite, tower
+- [X] T086 Add comprehensive error messages with error codes to all HTTP endpoints
+- [X] T087 Add Retry-After header to HTTP 429 responses per FR-010
+- [X] T088 Add request tracing IDs (FR-019) to all responses
+- [X] T089 Validate all HTTP endpoints against OpenAPI spec for consistency
+- [X] T090 Run cargo clippy and fix all warnings
+- [X] T091 Run cargo fmt to format all new code
+- [X] T092 Validate quickstart.md examples work end-to-end
+- [X] T093 Update project README.md with HTTP server usage instructions
+- [X] T094 [P] Validate WebSocket connection limit enforcement by testing 50+ concurrent connections in tests/integration/websocket_limits_test.rs
 
 **Checkpoint**: All documentation complete, code quality checks pass, ready for deployment
 

@@ -1,0 +1,988 @@
+openapi: 3.1.0
+info:
+  title: Binance MCP HTTP API
+  version: 1.0.0
+  description: |
+    HTTP REST API and WebSocket interface for Binance trading via MCP Server.
+
+    **Features**:
+    - Market data endpoints (prices, candles, order book, trades)
+    - Order management (create, cancel, query, list)
+    - Account information (balances, positions, trade history)
+    - Real-time WebSocket streams (ticker, depth, user data)
+
+    **Authentication**: Bearer token required for all endpoints (HTTP header: `Authorization: Bearer <token>`)
+
+    **Base URL**: `http://localhost:3000` (configurable via --port flag)
+  contact:
+    name: Binance MCP Server
+    url: https://github.com/anthropics/mcp-binance-server
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: http://localhost:8080
+    description: Alternative port
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Market Data
+    description: Public market data endpoints (prices, candles, order book)
+  - name: Orders
+    description: Order management endpoints (create, cancel, query)
+  - name: Account
+    description: Account information and trade history
+  - name: User Data Stream
+    description: Listen key management for authenticated WebSocket streams
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Bearer token authentication. Token is configured via HTTP_BEARER_TOKEN environment variable.
+        Include in all requests: `Authorization: Bearer <your_token>`
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - status
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Invalid symbol parameter"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+
+    TickerPrice:
+      type: object
+      required:
+        - symbol
+        - price
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        price:
+          type: string
+          description: Current price (string for precision)
+          example: "45000.50"
+
+    Ticker24hr:
+      type: object
+      required:
+        - symbol
+        - priceChange
+        - priceChangePercent
+        - lastPrice
+        - openPrice
+        - highPrice
+        - lowPrice
+        - volume
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        priceChange:
+          type: string
+          example: "1000.00"
+        priceChangePercent:
+          type: string
+          example: "2.27"
+        weightedAvgPrice:
+          type: string
+          example: "44500.00"
+        lastPrice:
+          type: string
+          example: "45000.00"
+        openPrice:
+          type: string
+          example: "44000.00"
+        highPrice:
+          type: string
+          example: "45500.00"
+        lowPrice:
+          type: string
+          example: "43500.00"
+        volume:
+          type: string
+          example: "1000.5"
+        quoteVolume:
+          type: string
+          example: "44500000.00"
+
+    Kline:
+      type: array
+      description: OHLCV candlestick data [openTime, open, high, low, close, volume, closeTime, quoteVolume, trades, takerBuyVolume, takerBuyQuoteVolume]
+      items:
+        oneOf:
+          - type: integer
+            format: int64
+          - type: string
+      example: [1609459200000, "44000.00", "45000.00", "43500.00", "44500.00", "1000.5", 1609545599999, "44500000.00", 50000, "500.25", "22250000.00"]
+
+    OrderBook:
+      type: object
+      required:
+        - lastUpdateId
+        - bids
+        - asks
+      properties:
+        lastUpdateId:
+          type: integer
+          format: int64
+          example: 1027024
+        bids:
+          type: array
+          description: Bid price levels [price, quantity]
+          items:
+            type: array
+            items:
+              type: string
+          example: [["44990.00", "0.5"], ["44985.00", "1.2"]]
+        asks:
+          type: array
+          description: Ask price levels [price, quantity]
+          items:
+            type: array
+            items:
+              type: string
+          example: [["45000.00", "0.8"], ["45005.00", "1.5"]]
+
+    Trade:
+      type: object
+      required:
+        - id
+        - price
+        - qty
+        - time
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 28457
+        price:
+          type: string
+          example: "45000.00"
+        qty:
+          type: string
+          example: "0.01"
+        quoteQty:
+          type: string
+          example: "450.00"
+        time:
+          type: integer
+          format: int64
+          example: 1609459200000
+        isBuyerMaker:
+          type: boolean
+          example: true
+        isBestMatch:
+          type: boolean
+          example: true
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - symbol
+        - side
+        - type
+        - quantity
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: "BUY"
+        type:
+          type: string
+          enum: [LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER]
+          example: "LIMIT"
+        quantity:
+          type: string
+          example: "0.01"
+        price:
+          type: string
+          description: Required for LIMIT orders
+          example: "45000.00"
+
+    Order:
+      type: object
+      required:
+        - symbol
+        - orderId
+        - status
+        - side
+        - type
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        orderId:
+          type: integer
+          format: int64
+          example: 12345678
+        clientOrderId:
+          type: string
+          example: "x-A6SIDXVS"
+        price:
+          type: string
+          example: "45000.00"
+        origQty:
+          type: string
+          example: "0.01"
+        executedQty:
+          type: string
+          example: "0.00"
+        cummulativeQuoteQty:
+          type: string
+          example: "0.00"
+        status:
+          type: string
+          enum: [NEW, PARTIALLY_FILLED, FILLED, CANCELED, REJECTED, EXPIRED]
+          example: "NEW"
+        timeInForce:
+          type: string
+          enum: [GTC, IOC, FOK]
+          example: "GTC"
+        type:
+          type: string
+          example: "LIMIT"
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: "BUY"
+        transactTime:
+          type: integer
+          format: int64
+          example: 1609459200000
+
+    Account:
+      type: object
+      required:
+        - balances
+        - canTrade
+      properties:
+        makerCommission:
+          type: integer
+          example: 10
+        takerCommission:
+          type: integer
+          example: 10
+        canTrade:
+          type: boolean
+          example: true
+        canWithdraw:
+          type: boolean
+          example: true
+        canDeposit:
+          type: boolean
+          example: true
+        updateTime:
+          type: integer
+          format: int64
+          example: 1609459200000
+        accountType:
+          type: string
+          example: "SPOT"
+        balances:
+          type: array
+          items:
+            type: object
+            required:
+              - asset
+              - free
+              - locked
+            properties:
+              asset:
+                type: string
+                example: "BTC"
+              free:
+                type: string
+                example: "0.00100000"
+              locked:
+                type: string
+                example: "0.00000000"
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["SPOT"]
+
+    MyTrade:
+      type: object
+      required:
+        - symbol
+        - id
+        - orderId
+        - price
+        - qty
+        - time
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        id:
+          type: integer
+          format: int64
+          example: 28457
+        orderId:
+          type: integer
+          format: int64
+          example: 100234
+        price:
+          type: string
+          example: "45000.00"
+        qty:
+          type: string
+          example: "0.001"
+        quoteQty:
+          type: string
+          example: "45.00"
+        commission:
+          type: string
+          example: "0.045"
+        commissionAsset:
+          type: string
+          example: "USDT"
+        time:
+          type: integer
+          format: int64
+          example: 1609459200000
+        isBuyer:
+          type: boolean
+          example: true
+        isMaker:
+          type: boolean
+          example: false
+        isBestMatch:
+          type: boolean
+          example: true
+
+    ListenKeyResponse:
+      type: object
+      required:
+        - listenKey
+      properties:
+        listenKey:
+          type: string
+          description: Listen key for user data stream (valid 60 minutes)
+          example: "pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until retry allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server or Binance API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Service temporarily unavailable (e.g., WebSocket connection limit reached)
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until retry allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the server is running
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+
+  /api/v1/ticker/price:
+    get:
+      tags:
+        - Market Data
+      summary: Get current price
+      description: Get the latest price for a trading pair
+      operationId: getTickerPrice
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+          description: Trading pair symbol
+      responses:
+        '200':
+          description: Current price
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TickerPrice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/ticker/24hr:
+    get:
+      tags:
+        - Market Data
+      summary: Get 24-hour ticker statistics
+      description: Get 24-hour price statistics for a trading pair
+      operationId: getTicker24hr
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+      responses:
+        '200':
+          description: 24-hour ticker statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticker24hr'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/klines:
+    get:
+      tags:
+        - Market Data
+      summary: Get candlestick data
+      description: Get historical OHLCV candlestick data
+      operationId: getKlines
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M"]
+            example: "1h"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+            example: 100
+      responses:
+        '200':
+          description: Array of candlestick data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Kline'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/depth:
+    get:
+      tags:
+        - Market Data
+      summary: Get order book depth
+      description: Get current order book (bids and asks)
+      operationId: getDepth
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [5, 10, 20, 50, 100, 500, 1000, 5000]
+            default: 100
+            example: 10
+      responses:
+        '200':
+          description: Order book depth
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderBook'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/trades:
+    get:
+      tags:
+        - Market Data
+      summary: Get recent trades
+      description: Get recent trades for a symbol
+      operationId: getTrades
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+            example: 100
+      responses:
+        '200':
+          description: Recent trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trade'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/order:
+    post:
+      tags:
+        - Orders
+      summary: Create new order
+      description: Place a new order on Binance
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Orders
+      summary: Cancel order
+      description: Cancel an existing order
+      operationId: cancelOrder
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: orderId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 12345678
+      responses:
+        '200':
+          description: Order canceled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags:
+        - Orders
+      summary: Query order status
+      description: Get status of a specific order
+      operationId: queryOrder
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: orderId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 12345678
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/openOrders:
+    get:
+      tags:
+        - Orders
+      summary: Get open orders
+      description: Get all open orders for a symbol or all symbols
+      operationId: getOpenOrders
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "BTCUSDT"
+          description: Optional symbol filter
+      responses:
+        '200':
+          description: List of open orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/allOrders:
+    get:
+      tags:
+        - Orders
+      summary: Get all orders
+      description: Get all orders (filled, canceled, etc.) for a symbol
+      operationId: getAllOrders
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+            example: 100
+      responses:
+        '200':
+          description: List of all orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/account:
+    get:
+      tags:
+        - Account
+      summary: Get account information
+      description: Get account balances and permissions
+      operationId: getAccount
+      responses:
+        '200':
+          description: Account information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/myTrades:
+    get:
+      tags:
+        - Account
+      summary: Get trade history
+      description: Get account trade history for a symbol
+      operationId: getMyTrades
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+            example: 100
+      responses:
+        '200':
+          description: Trade history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyTrade'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/userDataStream:
+    post:
+      tags:
+        - User Data Stream
+      summary: Create listen key
+      description: Create a listen key for user data stream (valid 60 minutes)
+      operationId: createListenKey
+      responses:
+        '200':
+          description: Listen key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListenKeyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - User Data Stream
+      summary: Keep alive listen key
+      description: Extend listen key validity by 60 minutes (call every 30 minutes)
+      operationId: keepaliveListenKey
+      parameters:
+        - name: listenKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Listen key to renew
+      responses:
+        '200':
+          description: Listen key renewed
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags:
+        - User Data Stream
+      summary: Close listen key
+      description: Close user data stream and invalidate listen key
+      operationId: closeListenKey
+      parameters:
+        - name: listenKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Listen key to close
+      responses:
+        '200':
+          description: Listen key closed
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+x-websocket-endpoints:
+  description: |
+    WebSocket streams for real-time data. All streams require Bearer token authentication via Authorization header during WebSocket upgrade.
+
+    **Connection Limit**: Maximum 50 concurrent WebSocket connections per server instance.
+
+    **Error Handling**: If connection limit is exceeded, HTTP 503 response with Retry-After header.
+
+  endpoints:
+    /ws/ticker/{symbol}:
+      description: Real-time 24hr ticker updates (every ~1000ms)
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "btcusdt"
+          description: Trading pair symbol (lowercase)
+      authentication: Bearer token in Authorization header during upgrade
+      message_schema:
+        type: object
+        properties:
+          e:
+            type: string
+            example: "24hrTicker"
+          E:
+            type: integer
+            format: int64
+            example: 1609459200000
+          s:
+            type: string
+            example: "BTCUSDT"
+          p:
+            type: string
+            example: "1000.00"
+          P:
+            type: string
+            example: "2.27"
+          c:
+            type: string
+            example: "45000.00"
+      example: |
+        wscat -c 'ws://localhost:3000/ws/ticker/btcusdt' \
+          -H "Authorization: Bearer test_token"
+
+    /ws/depth/{symbol}:
+      description: Real-time order book depth updates
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "btcusdt"
+      authentication: Bearer token in Authorization header during upgrade
+      message_schema:
+        type: object
+        properties:
+          e:
+            type: string
+            example: "depthUpdate"
+          E:
+            type: integer
+            format: int64
+          s:
+            type: string
+          b:
+            type: array
+            items:
+              type: array
+              items:
+                type: string
+            example: [["44990.00", "0.5"]]
+          a:
+            type: array
+            items:
+              type: array
+              items:
+                type: string
+            example: [["45000.00", "0.8"]]
+      example: |
+        wscat -c 'ws://localhost:3000/ws/depth/btcusdt' \
+          -H "Authorization: Bearer test_token"
+
+    /ws/user:
+      description: User data stream (order updates, balance changes)
+      authentication: Bearer token in Authorization header during upgrade
+      notes: |
+        - Automatically creates listen key on connection
+        - Automatically renews listen key every 30 minutes
+        - Automatically closes listen key on disconnect
+      message_types:
+        - executionReport: Order execution updates
+        - outboundAccountPosition: Balance updates
+      example: |
+        wscat -c 'ws://localhost:3000/ws/user' \
+          -H "Authorization: Bearer test_token"
