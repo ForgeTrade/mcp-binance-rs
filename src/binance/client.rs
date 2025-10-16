@@ -3,7 +3,9 @@
 //! HTTP client wrapper for making requests to Binance REST API.
 //! Provides timeout configuration and user-agent headers.
 
-use crate::binance::types::ServerTimeResponse;
+use crate::binance::types::{
+    KlineData, OrderBook, ServerTimeResponse, Ticker24hr, TickerPrice, Trade,
+};
 use crate::error::McpError;
 use reqwest::Client;
 use std::time::Duration;
@@ -151,6 +153,151 @@ impl BinanceClient {
                 }
             }
         }
+    }
+
+    /// Get latest price for a symbol
+    ///
+    /// Calls GET /api/v3/ticker/price
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "BTCUSDT")
+    ///
+    /// # Returns
+    /// * `Ok(TickerPrice)` - Current price data
+    /// * `Err(McpError)` - Network error or API error
+    pub async fn get_ticker_price(&self, symbol: &str) -> Result<TickerPrice, McpError> {
+        let url = format!("{}/api/v3/ticker/price?symbol={}", self.base_url, symbol);
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let ticker: TickerPrice = response.json().await?;
+        Ok(ticker)
+    }
+
+    /// Get 24-hour ticker price statistics
+    ///
+    /// Calls GET /api/v3/ticker/24hr
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "BTCUSDT")
+    ///
+    /// # Returns
+    /// * `Ok(Ticker24hr)` - 24-hour statistics
+    /// * `Err(McpError)` - Network error or API error
+    pub async fn get_24hr_ticker(&self, symbol: &str) -> Result<Ticker24hr, McpError> {
+        let url = format!("{}/api/v3/ticker/24hr?symbol={}", self.base_url, symbol);
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let ticker: Ticker24hr = response.json().await?;
+        Ok(ticker)
+    }
+
+    /// Get candlestick/kline data
+    ///
+    /// Calls GET /api/v3/klines
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "BTCUSDT")
+    /// * `interval` - Kline interval (e.g., "1m", "5m", "1h", "1d")
+    /// * `limit` - Number of klines to return (default 500, max 1000)
+    ///
+    /// # Returns
+    /// * `Ok(KlineData)` - Array of kline data
+    /// * `Err(McpError)` - Network error or API error
+    pub async fn get_klines(
+        &self,
+        symbol: &str,
+        interval: &str,
+        limit: Option<u32>,
+    ) -> Result<KlineData, McpError> {
+        let mut url = format!(
+            "{}/api/v3/klines?symbol={}&interval={}",
+            self.base_url, symbol, interval
+        );
+
+        if let Some(lim) = limit {
+            url.push_str(&format!("&limit={}", lim));
+        }
+
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let klines: KlineData = response.json().await?;
+        Ok(klines)
+    }
+
+    /// Get order book depth
+    ///
+    /// Calls GET /api/v3/depth
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "BTCUSDT")
+    /// * `limit` - Number of levels to return (default 100, valid: 5, 10, 20, 50, 100, 500, 1000, 5000)
+    ///
+    /// # Returns
+    /// * `Ok(OrderBook)` - Order book with bids and asks
+    /// * `Err(McpError)` - Network error or API error
+    pub async fn get_order_book(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+    ) -> Result<OrderBook, McpError> {
+        let mut url = format!("{}/api/v3/depth?symbol={}", self.base_url, symbol);
+
+        if let Some(lim) = limit {
+            url.push_str(&format!("&limit={}", lim));
+        }
+
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order_book: OrderBook = response.json().await?;
+        Ok(order_book)
+    }
+
+    /// Get recent trades
+    ///
+    /// Calls GET /api/v3/trades
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "BTCUSDT")
+    /// * `limit` - Number of trades to return (default 500, max 1000)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Trade>)` - List of recent trades
+    /// * `Err(McpError)` - Network error or API error
+    pub async fn get_recent_trades(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<Trade>, McpError> {
+        let mut url = format!("{}/api/v3/trades?symbol={}", self.base_url, symbol);
+
+        if let Some(lim) = limit {
+            url.push_str(&format!("&limit={}", lim));
+        }
+
+        let response = self.client.get(&url).send().await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let trades: Vec<Trade> = response.json().await?;
+        Ok(trades)
     }
 }
 
