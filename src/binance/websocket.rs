@@ -200,12 +200,134 @@ impl BinanceWebSocketClient {
             sleep(Duration::from_secs(1)).await;
         }
     }
+
+    /// Start a depth stream task that reads from Binance and broadcasts to subscribers
+    ///
+    /// Creates a background task that:
+    /// 1. Connects to Binance depth WebSocket stream
+    /// 2. Reads order book depth update messages
+    /// 3. Broadcasts messages to all subscribers via broadcast channel
+    /// 4. Automatically reconnects on connection loss
+    ///
+    /// ## Arguments
+    /// - `symbol`: Trading pair symbol in lowercase (e.g., "btcusdt")
+    /// - `tx`: Broadcast sender for distributing depth updates to subscribers
+    ///
+    /// ## Returns
+    /// Task handle that can be awaited or spawned
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use mcp_binance_server::binance::websocket::BinanceWebSocketClient;
+    /// use tokio::sync::broadcast;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = BinanceWebSocketClient::new();
+    /// let (tx, _rx) = broadcast::channel(100);
+    ///
+    /// // Spawn task to run in background
+    /// tokio::spawn(async move {
+    ///     if let Err(e) = client.depth_stream_task("btcusdt", tx).await {
+    ///         eprintln!("Depth stream error: {}", e);
+    ///     }
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn depth_stream_task(
+        &self,
+        symbol: &str,
+        tx: broadcast::Sender<DepthUpdate>,
+    ) -> Result<(), McpError> {
+        let stream_name = format!("{}@depth", symbol.to_lowercase());
+
+        loop {
+            tracing::info!("Starting depth stream for {}", symbol);
+
+            // Connect with retry
+            let (_write, mut read) = self.connect_with_retry(&stream_name).await?;
+
+            // Read messages and broadcast to subscribers
+            while let Some(msg_result) = read.next().await {
+                match msg_result {
+                    Ok(Message::Text(text)) => {
+                        // Parse depth update
+                        match serde_json::from_str::<DepthUpdate>(&text) {
+                            Ok(update) => {
+                                // Broadcast to all subscribers
+                                // Ignore send errors (no active receivers)
+                                let _ = tx.send(update);
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to parse depth update: {}", e);
+                            }
+                        }
+                    }
+                    Ok(Message::Ping(data)) => {
+                        tracing::debug!("Received ping with {} bytes", data.len());
+                    }
+                    Ok(Message::Pong(_)) => {
+                        tracing::debug!("Received pong");
+                    }
+                    Ok(Message::Close(frame)) => {
+                        tracing::info!("WebSocket closed: {:?}", frame);
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!("WebSocket read error: {}", e);
+                        break;
+                    }
+                    _ => {
+                        tracing::debug!("Received other message type");
+                    }
+                }
+            }
+
+            tracing::warn!("Depth stream disconnected, reconnecting...");
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
 }
 
 impl Default for BinanceWebSocketClient {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Order book depth update message from Binance WebSocket
+///
+/// Received from the `<symbol>@depth` stream for bid/ask updates
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepthUpdate {
+    /// Event type (always "depthUpdate")
+    #[serde(rename = "e")]
+    pub event_type: String,
+
+    /// Event time (milliseconds since Unix epoch)
+    #[serde(rename = "E")]
+    pub event_time: i64,
+
+    /// Trading pair symbol
+    #[serde(rename = "s")]
+    pub symbol: String,
+
+    /// First update ID in event
+    #[serde(rename = "U")]
+    pub first_update_id: i64,
+
+    /// Final update ID in event
+    #[serde(rename = "u")]
+    pub final_update_id: i64,
+
+    /// Bids to be updated [[price, quantity], ...]
+    #[serde(rename = "b")]
+    pub bids: Vec<(String, String)>,
+
+    /// Asks to be updated [[price, quantity], ...]
+    #[serde(rename = "a")]
+    pub asks: Vec<(String, String)>,
 }
 
 /// Ticker price update message from Binance WebSocket
