@@ -14,6 +14,7 @@ use crate::error::McpError;
 use futures_util::StreamExt;
 use serde::Deserialize;
 use std::time::Duration;
+use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
@@ -110,6 +111,93 @@ impl BinanceWebSocketClient {
                     backoff = std::cmp::min(backoff * 2, MAX_BACKOFF);
                 }
             }
+        }
+    }
+
+    /// Start a ticker stream task that reads from Binance and broadcasts to subscribers
+    ///
+    /// Creates a background task that:
+    /// 1. Connects to Binance ticker WebSocket stream
+    /// 2. Reads ticker update messages
+    /// 3. Broadcasts messages to all subscribers via broadcast channel
+    /// 4. Automatically reconnects on connection loss
+    ///
+    /// ## Arguments
+    /// - `symbol`: Trading pair symbol in lowercase (e.g., "btcusdt")
+    /// - `tx`: Broadcast sender for distributing ticker updates to subscribers
+    ///
+    /// ## Returns
+    /// Task handle that can be awaited or spawned
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use mcp_binance_server::binance::websocket::BinanceWebSocketClient;
+    /// use tokio::sync::broadcast;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = BinanceWebSocketClient::new();
+    /// let (tx, _rx) = broadcast::channel(100);
+    ///
+    /// // Spawn task to run in background
+    /// tokio::spawn(async move {
+    ///     if let Err(e) = client.ticker_stream_task("btcusdt", tx).await {
+    ///         eprintln!("Ticker stream error: {}", e);
+    ///     }
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn ticker_stream_task(
+        &self,
+        symbol: &str,
+        tx: broadcast::Sender<TickerUpdate>,
+    ) -> Result<(), McpError> {
+        let stream_name = format!("{}@ticker", symbol.to_lowercase());
+
+        loop {
+            tracing::info!("Starting ticker stream for {}", symbol);
+
+            // Connect with retry
+            let (_write, mut read) = self.connect_with_retry(&stream_name).await?;
+
+            // Read messages and broadcast to subscribers
+            while let Some(msg_result) = read.next().await {
+                match msg_result {
+                    Ok(Message::Text(text)) => {
+                        // Parse ticker update
+                        match serde_json::from_str::<TickerUpdate>(&text) {
+                            Ok(update) => {
+                                // Broadcast to all subscribers
+                                // Ignore send errors (no active receivers)
+                                let _ = tx.send(update);
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to parse ticker update: {}", e);
+                            }
+                        }
+                    }
+                    Ok(Message::Ping(data)) => {
+                        tracing::debug!("Received ping with {} bytes", data.len());
+                    }
+                    Ok(Message::Pong(_)) => {
+                        tracing::debug!("Received pong");
+                    }
+                    Ok(Message::Close(frame)) => {
+                        tracing::info!("WebSocket closed: {:?}", frame);
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!("WebSocket read error: {}", e);
+                        break;
+                    }
+                    _ => {
+                        tracing::debug!("Received other message type");
+                    }
+                }
+            }
+
+            tracing::warn!("Ticker stream disconnected, reconnecting...");
+            sleep(Duration::from_secs(1)).await;
         }
     }
 }
