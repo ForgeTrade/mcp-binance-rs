@@ -107,18 +107,18 @@ curl -X POST -H "Authorization: Bearer test_token" \
 
 ### Implementation for User Story 2
 
-- [ ] T027 [P] [US2] Create src/http/routes/orders.rs module file
-- [ ] T028 [P] [US2] Define NewOrderRequest struct with serde deserialization in src/http/routes/orders.rs
-- [ ] T029 [P] [US2] Define CancelOrderRequest struct with serde deserialization in src/http/routes/orders.rs
-- [ ] T030 [P] [US2] Implement POST /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::create_order)
-- [ ] T031 [P] [US2] Implement DELETE /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::cancel_order)
-- [ ] T032 [P] [US2] Implement GET /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::query_order)
-- [ ] T033 [P] [US2] Implement GET /api/v1/openOrders handler in src/http/routes/orders.rs (calls BinanceClient::get_open_orders)
-- [ ] T034 [P] [US2] Implement GET /api/v1/allOrders handler in src/http/routes/orders.rs (calls BinanceClient::get_all_orders)
-- [ ] T035 [US2] Register order management routes in Router with auth middleware in src/http/mod.rs
-- [ ] T036 [US2] Add order parameter validation (symbol, side, type, quantity, price rules) in orders.rs
-- [ ] T037 [US2] Add request ID generation and return in response headers for order tracing
-- [ ] T038 [US2] Handle insufficient balance errors and return HTTP 400 with descriptive message
+- [X] T027 [P] [US2] Create src/http/routes/orders.rs module file
+- [X] T028 [P] [US2] Define NewOrderRequest struct with serde deserialization in src/http/routes/orders.rs
+- [X] T029 [P] [US2] Define CancelOrderRequest struct with serde deserialization in src/http/routes/orders.rs
+- [X] T030 [P] [US2] Implement POST /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::create_order)
+- [X] T031 [P] [US2] Implement DELETE /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::cancel_order)
+- [X] T032 [P] [US2] Implement GET /api/v1/order handler in src/http/routes/orders.rs (calls BinanceClient::query_order)
+- [X] T033 [P] [US2] Implement GET /api/v1/openOrders handler in src/http/routes/orders.rs (calls BinanceClient::get_open_orders)
+- [X] T034 [P] [US2] Implement GET /api/v1/allOrders handler in src/http/routes/orders.rs (calls BinanceClient::get_all_orders)
+- [X] T035 [US2] Register order management routes in Router with auth middleware in src/http/mod.rs
+- [X] T036 [US2] Add order parameter validation (symbol, side, type, quantity, price rules) in orders.rs
+- [X] T037 [US2] Add request ID generation and return in response headers for order tracing
+- [X] T038 [US2] Handle insufficient balance errors and return HTTP 400 with descriptive message
 
 **Checkpoint**: Order management fully functional - can create, cancel, query orders independently of US1
 
@@ -137,14 +137,14 @@ curl -H "Authorization: Bearer test_token" \
 
 ### Implementation for User Story 3
 
-- [ ] T039 [P] [US3] Create src/http/routes/account.rs module file
-- [ ] T040 [P] [US3] Implement GET /api/v1/account handler in src/http/routes/account.rs (calls BinanceClient::get_account)
-- [ ] T041 [P] [US3] Implement GET /api/v1/account/balance handler in src/http/routes/account.rs (filters balances with non-zero amounts)
-- [ ] T042 [P] [US3] Implement GET /api/v1/myTrades handler in src/http/routes/account.rs (calls BinanceClient::get_my_trades)
-- [ ] T043 [US3] Register account routes in Router with auth middleware in src/http/mod.rs
-- [ ] T044 [US3] Add query parameter validation (symbol optional for myTrades, limit/fromId for pagination)
-- [ ] T045 [US3] Add timestamp to response for balance freshness tracking
-- [ ] T046 [US3] Handle rate limits and add exponential backoff for account queries
+- [X] T039 [P] [US3] Create src/http/routes/account.rs module file
+- [X] T040 [P] [US3] Implement GET /api/v1/account handler in src/http/routes/account.rs (calls BinanceClient::get_account)
+- [X] T041 [P] [US3] Implement GET /api/v1/account/balance handler in src/http/routes/account.rs (filters balances with non-zero amounts)
+- [X] T042 [P] [US3] Implement GET /api/v1/myTrades handler in src/http/routes/account.rs (calls BinanceClient::get_my_trades)
+- [X] T043 [US3] Register account routes in Router with auth middleware in src/http/mod.rs
+- [X] T044 [US3] Add query parameter validation (symbol optional for myTrades, limit/fromId for pagination)
+- [X] T045 [US3] Add timestamp to response for balance freshness tracking
+- [X] T046 [US3] Handle rate limits and add exponential backoff for account queries
 
 **Checkpoint**: Account endpoints fully functional - can get balances, positions, trade history independently
 
