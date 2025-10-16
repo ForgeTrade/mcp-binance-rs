@@ -172,11 +172,11 @@ wscat -c 'ws://localhost:3000/ws/ticker/btcusdt' \
 - [X] T053 [P] [US4] Implement WebSocket upgrade handler for /ws/ticker/:symbol in src/http/websocket/ticker.rs
 - [X] T054 [US4] Implement client message forwarding task (subscribe to broadcast, send to client WS)
 - [X] T055 [US4] Register ticker WebSocket route in Router with auth middleware in src/http/mod.rs
-- [ ] T056 [US4] Add WebSocket connection limit enforcement (max 50 concurrent per SC-003)
-- [ ] T057 [US4] Handle client disconnection and unsubscribe from broadcast channel
-- [ ] T058 [US4] Add automatic reconnection to Binance on connection loss with subscription restore
+- [X] T056 [US4] Add WebSocket connection limit enforcement (max 50 concurrent per SC-003)
+- [X] T057 [US4] Handle client disconnection and unsubscribe from broadcast channel
+- [X] T058 [US4] Add automatic reconnection to Binance on connection loss with subscription restore
 
-**Checkpoint**: Real-time ticker WebSocket fully functional - clients receive price updates <500ms latency
+**Checkpoint**: Real-time ticker WebSocket fully functional - clients receive price updates <500ms latency ✅
 
 ---
 
