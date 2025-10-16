@@ -15,8 +15,12 @@
 pub mod depth;
 #[cfg(all(feature = "http-api", feature = "websocket"))]
 pub mod ticker;
+#[cfg(all(feature = "http-api", feature = "websocket"))]
+pub mod user_data;
 
 #[cfg(all(feature = "http-api", feature = "websocket"))]
 pub use depth::depth_handler;
 #[cfg(all(feature = "http-api", feature = "websocket"))]
 pub use ticker::ticker_handler;
+#[cfg(all(feature = "http-api", feature = "websocket"))]
+pub use user_data::user_data_handler;

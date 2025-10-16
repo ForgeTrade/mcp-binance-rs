@@ -184,7 +184,8 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
             .route(
                 "/ws/depth/:symbol",
                 axum::routing::get(websocket::depth_handler),
-            );
+            )
+            .route("/ws/user", axum::routing::get(websocket::user_data_handler));
     }
 
     router
