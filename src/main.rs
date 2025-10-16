@@ -1,7 +1,8 @@
 //! MCP Binance Server Binary
 //!
-//! Entry point for the MCP Binance server. This binary initializes the server
-//! with stdio transport and handles graceful shutdown.
+//! Entry point for the MCP Binance server. Supports two modes:
+//! - stdio transport (default): Standard MCP stdio communication
+//! - HTTP server (--http flag): REST API + WebSocket server
 
 use mcp_binance_server::server::BinanceServer;
 use rmcp::ServiceExt;
@@ -23,16 +24,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting MCP Binance Server v{}", env!("CARGO_PKG_VERSION"));
 
+    // Check if --http flag is provided
+    let args: Vec<String> = std::env::args().collect();
+    let http_mode = args.iter().any(|arg| arg == "--http");
+
+    if http_mode {
+        #[cfg(feature = "http-api")]
+        {
+            run_http_server().await?;
+        }
+        #[cfg(not(feature = "http-api"))]
+        {
+            eprintln!("Error: HTTP mode requires 'http-api' feature to be enabled");
+            eprintln!("Rebuild with: cargo build --features http-api");
+            std::process::exit(1);
+        }
+    } else {
+        run_stdio_server().await?;
+    }
+
+    Ok(())
+}
+
+/// Run MCP server with stdio transport (default mode)
+async fn run_stdio_server() -> Result<(), Box<dyn std::error::Error>> {
     // Create BinanceServer instance and serve with stdio transport
     let service = BinanceServer::new().serve(stdio()).await?;
 
-    tracing::info!("MCP server initialized, waiting for requests");
+    tracing::info!("MCP server initialized with stdio transport, waiting for requests");
 
     // Wait for the service to complete (blocks until stdin closes)
     service.waiting().await?;
 
     // Graceful shutdown
     tracing::info!("MCP server shutting down gracefully");
+
+    Ok(())
+}
+
+/// Run HTTP REST API server (requires --http flag and http-api feature)
+#[cfg(feature = "http-api")]
+async fn run_http_server() -> Result<(), Box<dyn std::error::Error>> {
+    use mcp_binance_server::config::HttpConfig;
+    use mcp_binance_server::http::create_router;
+
+    // Load HTTP configuration from environment
+    let config = HttpConfig::from_env()?;
+
+    tracing::info!("Starting HTTP server on {}", config.addr);
+    tracing::info!("Rate limit: {} req/min per client", config.rate_limit);
+    tracing::info!(
+        "Max WebSocket connections: {}",
+        config.max_websocket_connections
+    );
+
+    // Create HTTP router
+    let app = create_router();
+
+    // Start HTTP server
+    let listener = tokio::net::TcpListener::bind(config.addr).await?;
+    tracing::info!("HTTP server listening on {}", config.addr);
+
+    axum::serve(listener, app).await?;
 
     Ok(())
 }

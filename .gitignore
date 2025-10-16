@@ -33,3 +33,14 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+# Rust profiling and debug
+*.prof*
+*.rlib
+debug/
+release/
+
+# Test artifacts
+tests/tmp/
+.coverage
+

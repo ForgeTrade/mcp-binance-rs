@@ -6,6 +6,8 @@
 pub mod binance;
 pub mod config;
 pub mod error;
+#[cfg(feature = "http-api")]
+pub mod http;
 pub mod server;
 pub mod tools;
 

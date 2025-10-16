@@ -46,6 +46,21 @@ anyhow = "1.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
+# HTTP Server - axum web framework (optional feature)
+axum = { version = "0.8.6", optional = true }
+
+# WebSocket Client - tokio-tungstenite for Binance streams (optional feature)
+tokio-tungstenite = { version = "0.28.0", optional = true }
+
+# Middleware - tower ecosystem for rate limiting, CORS, tracing
+tower = { version = "0.5.2", optional = true, features = ["limit", "buffer"] }
+tower-http = { version = "0.6.2", optional = true, features = ["trace", "cors", "catch-panic"] }
+
+[features]
+default = []
+http-api = ["axum", "tower", "tower-http"]
+websocket = ["tokio-tungstenite"]
+
 [profile.release]
 lto = true
 codegen-units = 1

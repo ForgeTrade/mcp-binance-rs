@@ -32,13 +32,13 @@ This ensures user-facing terminology (spec) maps clearly to developer implementa
 
 **Purpose**: Project initialization and HTTP server foundation
 
-- [ ] T001 Add axum, tokio-tungstenite, tower dependencies to Cargo.toml with http-api and websocket feature gates
-- [ ] T002 [P] Create src/http/mod.rs with module structure (routes, middleware, websocket submodules)
-- [ ] T003 [P] Create src/http/routes/mod.rs as route module root
-- [ ] T004 [P] Create src/http/middleware/mod.rs as middleware module root
-- [ ] T005 [P] Create src/http/websocket/mod.rs as WebSocket module root
-- [ ] T006 Add HTTP server configuration struct in src/config/http.rs (port, CORS origins, token list)
-- [ ] T007 Update src/main.rs to support --http flag and start axum server when enabled
+- [X] T001 Add axum, tokio-tungstenite, tower dependencies to Cargo.toml with http-api and websocket feature gates
+- [X] T002 [P] Create src/http/mod.rs with module structure (routes, middleware, websocket submodules)
+- [X] T003 [P] Create src/http/routes/mod.rs as route module root
+- [X] T004 [P] Create src/http/middleware/mod.rs as middleware module root
+- [X] T005 [P] Create src/http/websocket/mod.rs as WebSocket module root
+- [X] T006 Add HTTP server configuration struct in src/config/http.rs (port, CORS origins, token list)
+- [X] T007 Update src/main.rs to support --http flag and start axum server when enabled
 
 **Checkpoint**: Basic project structure in place, compiles with --features http-api
 
