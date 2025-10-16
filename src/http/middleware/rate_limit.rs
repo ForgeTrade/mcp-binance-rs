@@ -10,6 +10,10 @@ use governor::{
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
+/// Error type for rate limit exceeded
+#[derive(Debug, Clone, Copy)]
+pub struct RateLimitExceeded;
+
 /// Rate limiter using governor crate for per-server limits
 ///
 /// ## Configuration
@@ -47,9 +51,9 @@ impl RateLimiter {
 
     /// Check if a request is allowed
     ///
-    /// Returns `Ok(())` if allowed, `Err(())` if rate limit exceeded
-    pub fn check(&self) -> Result<(), ()> {
-        self.inner.check().map_err(|_| ())
+    /// Returns `Ok(())` if allowed, `Err(RateLimitExceeded)` if rate limit exceeded
+    pub fn check(&self) -> Result<(), RateLimitExceeded> {
+        self.inner.check().map_err(|_| RateLimitExceeded)
     }
 }
 

@@ -241,12 +241,12 @@ pub async fn get_all_orders(
     }
 
     // Validate limit
-    if let Some(limit) = params.limit {
-        if limit > 1000 {
-            return Err(McpError::InvalidRequest(
-                "limit cannot exceed 1000".to_string(),
-            ));
-        }
+    if let Some(limit) = params.limit
+        && limit > 1000
+    {
+        return Err(McpError::InvalidRequest(
+            "limit cannot exceed 1000".to_string(),
+        ));
     }
 
     let orders = state

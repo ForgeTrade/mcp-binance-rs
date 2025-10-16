@@ -93,6 +93,7 @@ impl Default for TokenStore {
 ///
 /// - `Ok(())` if token is valid
 /// - `Err(Response)` with appropriate HTTP status if invalid/missing
+#[allow(clippy::result_large_err)]
 fn extract_bearer_token(headers: &HeaderMap) -> Result<String, Response> {
     let auth_header = headers
         .get("authorization")

@@ -486,8 +486,9 @@ pub struct TickerUpdate {
 #[serde(tag = "e")]
 pub enum UserDataEvent {
     /// Order execution report (order update)
+    /// Boxed to reduce enum size (ExecutionReport is 480 bytes)
     #[serde(rename = "executionReport")]
-    ExecutionReport(ExecutionReport),
+    ExecutionReport(Box<ExecutionReport>),
 
     /// Account position update (balance change)
     #[serde(rename = "outboundAccountPosition")]
