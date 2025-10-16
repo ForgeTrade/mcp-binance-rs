@@ -1,0 +1,251 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "get_server_time Tool Contract",
+  "description": "MCP tool contract for retrieving Binance server time",
+  "type": "object",
+  "required": ["name", "description", "inputSchema"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "const": "get_server_time",
+      "description": "Tool identifier"
+    },
+    "description": {
+      "type": "string",
+      "const": "Returns the current Binance server time in milliseconds (Unix timestamp). This tool validates connectivity with Binance and provides time synchronization for future authenticated requests. No parameters required."
+    },
+    "inputSchema": {
+      "type": "object",
+      "description": "No input parameters required",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "name": "get_server_time",
+      "description": "Returns the current Binance server time in milliseconds (Unix timestamp). This tool validates connectivity with Binance and provides time synchronization for future authenticated requests. No parameters required.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  ],
+  "definitions": {
+    "ToolCallRequest": {
+      "description": "MCP tools/call request for get_server_time",
+      "type": "object",
+      "required": ["method", "params"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "method": {
+          "type": "string",
+          "const": "tools/call"
+        },
+        "params": {
+          "type": "object",
+          "required": ["name", "arguments"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "get_server_time"
+            },
+            "arguments": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false,
+              "description": "Empty object (no parameters)"
+            }
+          }
+        }
+      }
+    },
+    "ToolCallSuccessResponse": {
+      "description": "Successful response from get_server_time",
+      "type": "object",
+      "required": ["jsonrpc", "id", "result"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "result": {
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["type", "text"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "text"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "JSON string containing {\"serverTime\": <milliseconds>}",
+                    "pattern": "^\\{\"serverTime\":\\d+\\}$"
+                  }
+                }
+              },
+              "minItems": 1
+            },
+            "isError": {
+              "type": "boolean",
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "ToolCallErrorResponse": {
+      "description": "Error response from get_server_time",
+      "type": "object",
+      "required": ["jsonrpc", "id", "result"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "result": {
+          "type": "object",
+          "required": ["content", "isError"],
+          "properties": {
+            "content": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["type", "text"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "text"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Error message describing what went wrong",
+                    "examples": [
+                      "Connection error: Failed to connect to Binance API",
+                      "Rate limit exceeded: Please retry after 60 seconds",
+                      "Parse error: Invalid response from Binance"
+                    ]
+                  }
+                }
+              },
+              "minItems": 1
+            },
+            "isError": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "requestResponseExamples": {
+    "successCase": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "get_server_time",
+          "arguments": {}
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"serverTime\":1609459200000}"
+            }
+          ]
+        }
+      }
+    },
+    "connectionErrorCase": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "get_server_time",
+          "arguments": {}
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Connection error: Failed to connect to Binance API after 3 retries. Please check your internet connection."
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    "rateLimitCase": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "get_server_time",
+          "arguments": {}
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Rate limit exceeded: Too many requests to Binance API. Retry after 60 seconds."
+            }
+          ],
+          "isError": true
+        }
+      }
+    }
+  },
+  "notes": {
+    "binanceEndpoint": "GET https://api.binance.com/api/v3/time",
+    "binanceWeight": 1,
+    "binanceDataSource": "Memory",
+    "expectedLatency": "< 100ms under normal conditions",
+    "errorHandling": [
+      "Network failures return connection_error",
+      "429 responses return rate_limit error with retry-after info",
+      "Invalid JSON returns parse_error",
+      "All errors set isError: true in result"
+    ],
+    "securityConsiderations": [
+      "No authentication required (public endpoint)",
+      "Rate limited by Binance (1200 weight/min default)",
+      "HTTPS enforced via rustls-tls"
+    ]
+  }
+}

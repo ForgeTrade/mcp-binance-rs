@@ -1,0 +1,35 @@
+# Reference directories (read-only documentation)
+binance-connector-rust/
+binance-sbe-rust-sample-app/
+binance-spot-api-docs/
+modelcontextprotocol/
+rust-sdk/
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/

@@ -1,0 +1,350 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Protocol Lifecycle Contract",
+  "description": "Contract for MCP server initialization and capability negotiation",
+  "type": "object",
+  "definitions": {
+    "InitializeRequest": {
+      "description": "Client sends this to initialize the MCP session",
+      "type": "object",
+      "required": ["jsonrpc", "method", "params"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "method": {
+          "type": "string",
+          "const": "initialize"
+        },
+        "params": {
+          "type": "object",
+          "required": ["protocolVersion", "capabilities", "clientInfo"],
+          "properties": {
+            "protocolVersion": {
+              "type": "string",
+              "description": "MCP protocol version (e.g., '2024-11-05')",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "capabilities": {
+              "type": "object",
+              "description": "Client capabilities"
+            },
+            "clientInfo": {
+              "type": "object",
+              "required": ["name", "version"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "examples": ["Claude Desktop", "VS Code MCP Client"]
+                },
+                "version": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d+\\.\\d+"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "InitializeResponse": {
+      "description": "Server responds with its capabilities and identity",
+      "type": "object",
+      "required": ["jsonrpc", "id", "result"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "result": {
+          "type": "object",
+          "required": ["protocolVersion", "capabilities", "serverInfo"],
+          "properties": {
+            "protocolVersion": {
+              "type": "string",
+              "description": "MCP protocol version server supports",
+              "const": "2024-11-05"
+            },
+            "capabilities": {
+              "type": "object",
+              "required": ["tools"],
+              "properties": {
+                "tools": {
+                  "type": "object",
+                  "properties": {
+                    "listChanged": {
+                      "type": "boolean",
+                      "const": false,
+                      "description": "Foundation does not support dynamic tool registration"
+                    }
+                  }
+                },
+                "resources": {
+                  "type": "null",
+                  "description": "Not supported in foundation"
+                },
+                "prompts": {
+                  "type": "null",
+                  "description": "Not supported in foundation"
+                }
+              }
+            },
+            "serverInfo": {
+              "type": "object",
+              "required": ["name", "version"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "const": "mcp-binance-server"
+                },
+                "version": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d+\\.\\d+",
+                  "examples": ["0.1.0"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "InitializedNotification": {
+      "description": "Client confirms initialization complete",
+      "type": "object",
+      "required": ["jsonrpc", "method"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "method": {
+          "type": "string",
+          "const": "notifications/initialized"
+        },
+        "params": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    "ToolsListRequest": {
+      "description": "Client requests available tools after initialization",
+      "type": "object",
+      "required": ["jsonrpc", "method"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "method": {
+          "type": "string",
+          "const": "tools/list"
+        },
+        "params": {
+          "type": "object",
+          "properties": {},
+          "description": "No parameters for tools/list in foundation"
+        }
+      }
+    },
+    "ToolsListResponse": {
+      "description": "Server returns list of available tools",
+      "type": "object",
+      "required": ["jsonrpc", "id", "result"],
+      "properties": {
+        "jsonrpc": {
+          "type": "string",
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["string", "number"]
+        },
+        "result": {
+          "type": "object",
+          "required": ["tools"],
+          "properties": {
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "description", "inputSchema"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "inputSchema": {
+                    "$ref": "http://json-schema.org/draft-07/schema#"
+                  }
+                }
+              },
+              "minItems": 1,
+              "description": "Foundation phase: exactly 1 tool (get_server_time)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "lifecycleSequence": {
+    "description": "Complete MCP initialization sequence",
+    "steps": [
+      {
+        "step": 1,
+        "actor": "Client",
+        "action": "Send initialize request",
+        "schema": "#/definitions/InitializeRequest"
+      },
+      {
+        "step": 2,
+        "actor": "Server",
+        "action": "Respond with capabilities",
+        "schema": "#/definitions/InitializeResponse"
+      },
+      {
+        "step": 3,
+        "actor": "Client",
+        "action": "Send initialized notification",
+        "schema": "#/definitions/InitializedNotification"
+      },
+      {
+        "step": 4,
+        "actor": "Client",
+        "action": "Request available tools",
+        "schema": "#/definitions/ToolsListRequest"
+      },
+      {
+        "step": 5,
+        "actor": "Server",
+        "action": "Return tools list",
+        "schema": "#/definitions/ToolsListResponse"
+      },
+      {
+        "step": 6,
+        "actor": "Client",
+        "action": "Call tools as needed",
+        "note": "See get_server_time.json contract"
+      }
+    ]
+  },
+  "exampleExchange": {
+    "request1_initialize": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {},
+        "clientInfo": {
+          "name": "Claude Desktop",
+          "version": "1.0.0"
+        }
+      }
+    },
+    "response1_initialize": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+          "tools": {
+            "listChanged": false
+          }
+        },
+        "serverInfo": {
+          "name": "mcp-binance-server",
+          "version": "0.1.0"
+        }
+      }
+    },
+    "notification2_initialized": {
+      "jsonrpc": "2.0",
+      "method": "notifications/initialized"
+    },
+    "request3_toolsList": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/list"
+    },
+    "response3_toolsList": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "tools": [
+          {
+            "name": "get_server_time",
+            "description": "Returns the current Binance server time in milliseconds (Unix timestamp). This tool validates connectivity with Binance and provides time synchronization for future authenticated requests. No parameters required.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    }
+  },
+  "errorScenarios": {
+    "protocolVersionMismatch": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2023-01-01",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "Old Client",
+            "version": "0.1.0"
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {
+          "code": -32602,
+          "message": "Protocol version '2023-01-01' not supported. Server supports: '2024-11-05'"
+        }
+      }
+    },
+    "toolsListBeforeInitialize": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {
+          "code": -32603,
+          "message": "Server not initialized. Send initialize request first."
+        }
+      }
+    }
+  },
+  "performanceTargets": {
+    "initializeLatency": "< 100ms",
+    "toolsListLatency": "< 50ms",
+    "totalHandshake": "< 500ms (initialize + initialized + tools/list)"
+  },
+  "notes": {
+    "transport": "Stdio only in foundation phase",
+    "concurrency": "Single client per server instance",
+    "statefulness": "Server maintains initialization state (uninitialized → initialized)",
+    "gracefulShutdown": "Server detects stdio closure and exits cleanly"
+  }
+}

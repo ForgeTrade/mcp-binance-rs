@@ -1,0 +1,71 @@
+//! MCP Server Implementation
+//!
+//! This module contains the MCP server infrastructure including the ServerHandler
+//! trait implementation and tool routing logic.
+
+pub mod handler;
+pub mod tool_router;
+
+use crate::binance::BinanceClient;
+use crate::config::Credentials;
+use rmcp::handler::server::router::tool::ToolRouter;
+
+/// Main Binance MCP Server struct
+///
+/// This struct holds the server state including Binance API client, credentials,
+/// and tool router for handling MCP requests.
+#[derive(Clone)]
+pub struct BinanceServer {
+    /// Binance API client for making requests
+    pub binance_client: BinanceClient,
+    /// Optional API credentials loaded from environment
+    pub credentials: Option<Credentials>,
+    /// Tool router for MCP tool routing
+    pub tool_router: ToolRouter<Self>,
+}
+
+impl BinanceServer {
+    /// Creates a new Binance server instance
+    ///
+    /// Loads credentials from environment variables and initializes Binance API client.
+    /// Logs credential status at INFO level (masked), or WARN if not configured.
+    pub fn new() -> Self {
+        let credentials = match Credentials::from_env() {
+            Ok(creds) => {
+                // T009: Log at INFO level with masked key (NEVER log secret_key)
+                tracing::info!(
+                    "API credentials configured (key: {})",
+                    creds.api_key // Display trait shows masked version
+                );
+                Some(creds)
+            }
+            Err(err) => {
+                // T010: Handle missing credentials gracefully
+                tracing::warn!(
+                    "No API credentials configured; authenticated features disabled. {}",
+                    err
+                );
+                None
+            }
+        };
+
+        let binance_client = BinanceClient::new();
+
+        Self {
+            binance_client,
+            credentials,
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Checks if the server has valid API credentials configured
+    pub fn is_authenticated(&self) -> bool {
+        self.credentials.is_some()
+    }
+}
+
+impl Default for BinanceServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
