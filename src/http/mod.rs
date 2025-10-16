@@ -140,7 +140,12 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
             "/allOrders",
             axum::routing::get(routes::orders::get_all_orders),
         )
-        // Account endpoints will be added in Phase 5 (US3)
+        // Account endpoints (Phase 5 - US3)
+        .route("/account", axum::routing::get(routes::account::get_account))
+        .route(
+            "/myTrades",
+            axum::routing::get(routes::account::get_my_trades),
+        )
         .with_state(state.clone());
 
     // Build main router with health check and API routes

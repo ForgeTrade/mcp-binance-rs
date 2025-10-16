@@ -6,8 +6,8 @@
 //! - Account: balance, positions
 
 #[cfg(feature = "http-api")]
+pub mod account;
+#[cfg(feature = "http-api")]
 pub mod market_data;
 #[cfg(feature = "http-api")]
 pub mod orders;
-
-// Account routes will be added in Phase 5 (US3)
