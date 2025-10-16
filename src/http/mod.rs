@@ -10,6 +10,8 @@
 //! - `middleware/`: Authentication, rate limiting, CORS
 //! - `websocket/`: WebSocket client connections to Binance
 
+use std::sync::Arc;
+
 #[cfg(feature = "http-api")]
 pub mod middleware;
 #[cfg(feature = "http-api")]
@@ -18,4 +20,106 @@ pub mod routes;
 pub mod websocket;
 
 #[cfg(feature = "http-api")]
-pub use routes::create_router;
+use crate::binance::client::BinanceClient;
+#[cfg(feature = "http-api")]
+use axum::Router;
+#[cfg(feature = "http-api")]
+pub use middleware::{
+    RateLimiter, TokenStore, check_rate_limit, create_cors_layer, validate_bearer_token,
+};
+
+/// Shared application state passed to all HTTP handlers
+///
+/// ## Fields
+///
+/// - `binance_client`: Arc-wrapped Binance API client for making requests
+/// - `token_store`: Arc-wrapped authentication token store
+/// - `rate_limiter`: Arc-wrapped rate limiter for global request limiting
+///
+/// ## Usage
+///
+/// Handlers can access state using `axum::extract::State`:
+///
+/// ```rust,no_run
+/// use axum::extract::State;
+/// use mcp_binance_server::http::AppState;
+///
+/// async fn handler(State(state): State<AppState>) {
+///     let server_time = state.binance_client.get_server_time().await;
+/// }
+/// ```
+#[cfg(feature = "http-api")]
+#[derive(Clone)]
+pub struct AppState {
+    /// Binance API client for making requests
+    pub binance_client: Arc<BinanceClient>,
+
+    /// Authentication token store
+    pub token_store: TokenStore,
+
+    /// Rate limiter for global request limiting
+    pub rate_limiter: RateLimiter,
+}
+
+/// Create the main HTTP router with all middleware and routes
+///
+/// ## Arguments
+///
+/// - `token_store`: Authentication token store
+/// - `rate_limiter`: Rate limiter instance
+///
+/// ## Returns
+///
+/// Configured axum Router with:
+/// - CORS middleware
+/// - Authentication middleware
+/// - Rate limiting middleware
+/// - All REST API routes
+/// - Health check endpoint
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// use mcp_binance_server::http::{create_router, TokenStore, RateLimiter};
+///
+/// # async fn example() {
+/// let token_store = TokenStore::new();
+/// let rate_limiter = RateLimiter::new(100);
+///
+/// let app = create_router(token_store, rate_limiter);
+///
+/// let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+///     .await
+///     .unwrap();
+/// axum::serve(listener, app).await.unwrap();
+/// # }
+/// ```
+#[cfg(feature = "http-api")]
+pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Router {
+    use axum::middleware;
+
+    // Create shared application state
+    let state = AppState {
+        binance_client: Arc::new(BinanceClient::new()),
+        token_store: token_store.clone(),
+        rate_limiter: rate_limiter.clone(),
+    };
+
+    // Build router with all routes and middleware
+    Router::new()
+        // Health check (no auth required)
+        .route("/health", axum::routing::get(|| async { "OK" }))
+        // API routes will be added in Phase 3-5
+        // .nest("/api/v1", routes::create_api_routes())
+        // Apply middleware layers (order matters: outer → inner)
+        .layer(create_cors_layer()) // CORS (outermost)
+        .layer(middleware::from_fn_with_state(
+            rate_limiter,
+            check_rate_limit,
+        )) // Rate limiting
+        .layer(middleware::from_fn_with_state(
+            token_store,
+            validate_bearer_token,
+        )) // Authentication (innermost for protected routes)
+        .with_state(state)
+}

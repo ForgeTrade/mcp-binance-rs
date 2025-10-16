@@ -50,15 +50,15 @@ This ensures user-facing terminology (spec) maps clearly to developer implementa
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T008 Implement TokenStore struct with Arc<RwLock<HashMap<String, TokenMetadata>>> in src/http/middleware/auth.rs
-- [ ] T009 Implement validate_bearer_token middleware function in src/http/middleware/auth.rs
-- [ ] T010 [P] Implement CORS middleware configuration in src/http/middleware/cors.rs using tower_http::cors::CorsLayer
-- [ ] T011 [P] Implement rate limiting middleware in src/http/middleware/rate_limit.rs using tower::limit::RateLimitLayer
-- [ ] T012 Create AppState struct holding Arc<BinanceClient> and Arc<TokenStore> in src/http/mod.rs
-- [ ] T013 Implement axum Router setup with middleware layers in src/http/mod.rs
-- [ ] T014 [P] Add HTTP error conversion from BinanceError to axum::response::Response in src/error.rs
-- [ ] T015 [P] Create health check endpoint GET /health in src/http/routes/mod.rs
-- [ ] T016 Load MCP_AUTH_TOKENS from environment and populate TokenStore in src/config/http.rs
+- [X] T008 Implement TokenStore struct with Arc<RwLock<HashMap<String, TokenMetadata>>> in src/http/middleware/auth.rs
+- [X] T009 Implement validate_bearer_token middleware function in src/http/middleware/auth.rs
+- [X] T010 [P] Implement CORS middleware configuration in src/http/middleware/cors.rs using tower_http::cors::CorsLayer
+- [X] T011 [P] Implement rate limiting middleware in src/http/middleware/rate_limit.rs using governor::RateLimiter
+- [X] T012 Create AppState struct holding Arc<BinanceClient> and Arc<TokenStore> in src/http/mod.rs
+- [X] T013 Implement axum Router setup with middleware layers in src/http/mod.rs
+- [X] T014 [P] Add HTTP error conversion from McpError to axum::response::Response in src/error.rs
+- [X] T015 [P] Create health check endpoint GET /health in src/http/mod.rs (part of create_router)
+- [X] T016 Load HTTP_BEARER_TOKEN from environment and populate TokenStore in src/main.rs
 
 **Checkpoint**: Foundation ready - HTTP server starts, auth middleware works, health check responds
 

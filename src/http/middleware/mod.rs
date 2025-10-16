@@ -6,6 +6,16 @@
 //! - CORS headers for browser clients
 //! - Request tracing
 
-// Auth middleware will be implemented in Phase 2 (T008-T011)
-// Rate limiting will be implemented in Phase 2 (T012-T013)
-// CORS will be implemented in Phase 2 (T014)
+#[cfg(feature = "http-api")]
+pub mod auth;
+#[cfg(feature = "http-api")]
+pub mod cors;
+#[cfg(feature = "http-api")]
+pub mod rate_limit;
+
+#[cfg(feature = "http-api")]
+pub use auth::{TokenStore, validate_bearer_token};
+#[cfg(feature = "http-api")]
+pub use cors::create_cors_layer;
+#[cfg(feature = "http-api")]
+pub use rate_limit::{RateLimiter, check_rate_limit};

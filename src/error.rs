@@ -112,3 +112,51 @@ impl From<std::io::Error> for McpError {
         McpError::InternalError(format!("I/O error: {}", err))
     }
 }
+
+// HTTP response conversion for axum
+#[cfg(feature = "http-api")]
+impl axum::response::IntoResponse for McpError {
+    fn into_response(self) -> axum::response::Response {
+        use axum::Json;
+        use axum::http::StatusCode;
+        use serde_json::json;
+
+        let (status, error_type, message) = match &self {
+            McpError::ConnectionError(_) => {
+                (StatusCode::BAD_GATEWAY, self.error_type(), self.to_string())
+            }
+            McpError::RateLimitError(_) => (
+                StatusCode::TOO_MANY_REQUESTS,
+                self.error_type(),
+                self.to_string(),
+            ),
+            McpError::ParseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                self.error_type(),
+                "Failed to parse API response".to_string(),
+            ),
+            McpError::InvalidRequest(_) => {
+                (StatusCode::BAD_REQUEST, self.error_type(), self.to_string())
+            }
+            McpError::NotReady(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                self.error_type(),
+                self.to_string(),
+            ),
+            McpError::InternalError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                self.error_type(),
+                "An internal error occurred".to_string(),
+            ),
+        };
+
+        let body = Json(json!({
+            "error": {
+                "type": error_type,
+                "message": message,
+            }
+        }));
+
+        (status, body).into_response()
+    }
+}

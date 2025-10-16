@@ -66,7 +66,7 @@ async fn run_stdio_server() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "http-api")]
 async fn run_http_server() -> Result<(), Box<dyn std::error::Error>> {
     use mcp_binance_server::config::HttpConfig;
-    use mcp_binance_server::http::create_router;
+    use mcp_binance_server::http::{RateLimiter, TokenStore, create_router};
 
     // Load HTTP configuration from environment
     let config = HttpConfig::from_env()?;
@@ -78,8 +78,16 @@ async fn run_http_server() -> Result<(), Box<dyn std::error::Error>> {
         config.max_websocket_connections
     );
 
-    // Create HTTP router
-    let app = create_router();
+    // Initialize token store and load tokens from environment
+    let token_store = TokenStore::new();
+    token_store.add_token(&config.bearer_token, "env_token".to_string());
+    tracing::info!("Loaded 1 bearer token from environment");
+
+    // Create rate limiter
+    let rate_limiter = RateLimiter::new(config.rate_limit);
+
+    // Create HTTP router with middleware
+    let app = create_router(token_store, rate_limiter);
 
     // Start HTTP server
     let listener = tokio::net::TcpListener::bind(config.addr).await?;
