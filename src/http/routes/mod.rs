@@ -7,6 +7,7 @@
 
 #[cfg(feature = "http-api")]
 pub mod market_data;
+#[cfg(feature = "http-api")]
+pub mod orders;
 
-// Order routes will be added in Phase 4 (US2)
 // Account routes will be added in Phase 5 (US3)

@@ -125,7 +125,21 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
             "/trades",
             axum::routing::get(routes::market_data::get_trades),
         )
-        // Order endpoints will be added in Phase 4 (US2)
+        // Order endpoints (Phase 4 - US2)
+        .route(
+            "/order",
+            axum::routing::post(routes::orders::create_order)
+                .delete(routes::orders::cancel_order)
+                .get(routes::orders::query_order),
+        )
+        .route(
+            "/openOrders",
+            axum::routing::get(routes::orders::get_open_orders),
+        )
+        .route(
+            "/allOrders",
+            axum::routing::get(routes::orders::get_all_orders),
+        )
         // Account endpoints will be added in Phase 5 (US3)
         .with_state(state.clone());
 
