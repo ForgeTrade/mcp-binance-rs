@@ -8,9 +8,10 @@ A powerful Model Context Protocol (MCP) server that brings Binance cryptocurrenc
 
 ## ✨ Key Features
 
-- 🤖 **13 AI-Ready Tools** - Complete market data, account info, and trading operations
+- 🤖 **16 AI-Ready Tools** - Complete market data, order book depth, account info, and trading operations
+- 📊 **Order Book Depth Analysis** - L1 metrics, L2 depth with progressive disclosure, real-time WebSocket streams
 - 🔄 **Dual Mode** - HTTP REST API + WebSocket OR MCP stdio protocol
-- ⚡ **Real-Time Data** - WebSocket streams for live price updates
+- ⚡ **Real-Time Data** - WebSocket streams for live price and depth updates (100ms)
 - 🔐 **Secure** - API keys from environment, never logged
 - 🎯 **Type-Safe** - Rust guarantees correctness at compile time
 - 🚦 **Rate Limiting** - Automatic throttling and exponential backoff
@@ -31,8 +32,8 @@ A powerful Model Context Protocol (MCP) server that brings Binance cryptocurrenc
 git clone https://github.com/tradeforge/mcp-binance-rs.git
 cd mcp-binance-rs
 
-# Build the MCP server
-cargo build --release
+# Build the MCP server (with orderbook features)
+cargo build --release --features orderbook
 
 # Verify installation
 ./target/release/mcp-binance-server --version
@@ -57,6 +58,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "args": [
         "run",
         "--release",
+        "--features",
+        "orderbook",
         "--manifest-path",
         "/path/to/mcp-binance-rs/Cargo.toml"
       ],
@@ -156,6 +159,95 @@ Get current average price (simpler than ticker).
 - `symbol` - Trading pair
 
 **Example**: *"What's the average price of Ethereum?"*
+
+### 📊 Order Book Depth Tools
+
+#### `get_orderbook_metrics`
+Get L1 market metrics with spread, mid-price, and liquidity analysis.
+
+**Parameters**:
+- `symbol` - Trading pair (e.g., "BTCUSDT", "ETHUSDT")
+
+**Features**:
+- **Compact Format**: Uses ~15% of tokens compared to full order book
+- **Real-Time Data**: WebSocket streams with 100ms updates
+- **Comprehensive Metrics**: Spread, mid-price, liquidity depth, walls detection
+
+**Example**: *"Show me orderbook metrics for BTCUSDT"*
+
+```json
+Response: {
+  "symbol": "BTCUSDT",
+  "timestamp": 1699564800123,
+  "spread_bps": 0.15,
+  "mid_price": "67650.50",
+  "bid_liquidity_10bps": "123.45",
+  "ask_liquidity_10bps": "98.76",
+  "walls": {
+    "bids": [{"price": "67500.00", "qty": "50.0"}],
+    "asks": []
+  }
+}
+```
+
+#### `get_orderbook_depth`
+Get L2 order book depth with configurable levels (progressive disclosure).
+
+**Parameters**:
+- `symbol` - Trading pair
+- `levels` - Number of levels (20 or 100)
+  - **20 levels** (L2-lite): Uses ~50% of tokens, optimized for quick analysis
+  - **100 levels** (L2-full): Uses 100% of tokens, comprehensive market depth
+
+**Features**:
+- **Compact Integer Encoding**: 40% smaller JSON than string decimals
+- **Real-Time Updates**: WebSocket streams with 100ms latency
+- **Progressive Disclosure**: Start with 20 levels, upgrade to 100 if needed
+
+**Example**: *"Get orderbook depth for ETHUSDT with 20 levels"*
+
+```json
+Response: {
+  "symbol": "ETHUSDT",
+  "timestamp": 1699564800123,
+  "price_scale": 100,
+  "qty_scale": 100000,
+  "bids": [
+    [308500, 1050000],  // $3085.00, 10.5 ETH
+    [308450, 520000]    // $3084.50, 5.2 ETH
+  ],
+  "asks": [
+    [308600, 830000],   // $3086.00, 8.3 ETH
+    [308650, 1210000]   // $3086.50, 12.1 ETH
+  ]
+}
+```
+
+**Decoding**:
+- `price = scaled_price / price_scale` (e.g., 308500 / 100 = $3085.00)
+- `quantity = scaled_qty / qty_scale` (e.g., 1050000 / 100000 = 10.5)
+
+#### `get_orderbook_health`
+Check WebSocket connection health and data freshness.
+
+**Parameters**: None
+
+**Status Values**:
+- `ok` - All orderbook connections healthy
+- `degraded` - Some connections experiencing issues
+- `error` - Critical failures detected
+
+**Example**: *"Check orderbook service health"*
+
+```json
+Response: {
+  "status": "ok",
+  "orderbook_symbols_active": 3,
+  "last_update_age_ms": 127,
+  "websocket_connected": true,
+  "reason": null
+}
+```
 
 ### 👤 Account Tools
 
@@ -264,13 +356,40 @@ Get complete order history (active, canceled, filled).
 
 ## 💬 Example Conversations
 
+### Basic Market Data
 ```
 You: "What's the current Bitcoin price?"
 Claude: [Uses get_ticker] "Bitcoin is currently trading at $50,234.56..."
 
 You: "Show me the order book depth for ETHUSDT"
 Claude: [Uses get_order_book] "Here's the ETHUSDT order book..."
+```
 
+### Order Book Analysis
+```
+You: "Show me orderbook metrics for BTCUSDT"
+Claude: [Uses get_orderbook_metrics] "BTCUSDT orderbook metrics:
+- Spread: 0.15 bps (tight spread, good liquidity)
+- Mid Price: $67,650.50
+- Bid liquidity within 10 bps: 123.45 BTC
+- Ask liquidity within 10 bps: 98.76 BTC
+- Large wall detected at $67,500 (50 BTC)"
+
+You: "Get detailed depth with 20 levels"
+Claude: [Uses get_orderbook_depth with levels=20] "Here's the L2 depth for BTCUSDT:
+Top 3 bids: $67,650.00 (1.2 BTC), $67,649.50 (0.8 BTC), $67,649.00 (1.5 BTC)
+Top 3 asks: $67,650.50 (0.9 BTC), $67,651.00 (1.1 BTC), $67,651.50 (0.7 BTC)"
+
+You: "Is the orderbook service healthy?"
+Claude: [Uses get_orderbook_health] "Orderbook service is healthy:
+- Status: OK
+- Active symbols: 3
+- Last update: 127ms ago
+- WebSocket: Connected"
+```
+
+### Account & Trading
+```
 You: "What's my account balance?"
 Claude: [Uses get_account_info] "Your account has 0.5 BTC and 10,000 USDT..."
 
@@ -412,8 +531,8 @@ All errors include:
 Run as a standalone HTTP server with WebSocket support:
 
 ```bash
-# Build with HTTP features
-cargo build --release --features http-api,websocket
+# Build with HTTP + orderbook features
+cargo build --release --features http-api,websocket,orderbook
 
 # Configure
 export HTTP_BEARER_TOKEN="your_secure_token"
@@ -424,6 +543,24 @@ export BINANCE_SECRET_KEY="your_secret"
 
 # Start server
 ./target/release/mcp-binance-server
+```
+
+### Feature Flags
+
+Control which features to compile:
+
+```bash
+# Core features only (13 tools)
+cargo build --release
+
+# Add orderbook depth tools (16 tools)
+cargo build --release --features orderbook
+
+# Add HTTP API + WebSocket
+cargo build --release --features http-api,websocket
+
+# All features
+cargo build --release --features orderbook,http-api,websocket
 ```
 
 **REST API Endpoints**: See [CLAUDE_DESKTOP_SETUP.md](CLAUDE_DESKTOP_SETUP.md) for complete API documentation.
@@ -547,15 +684,29 @@ src/
 # Run all tests
 cargo test
 
+# Run tests with orderbook features
+cargo test --features orderbook
+
 # Run integration tests
-cargo test --test '*'
+cargo test --test '*' --features orderbook
+
+# Run performance tests
+cargo test --features orderbook --release -- --nocapture test_l1_metrics_performance
+cargo test --features orderbook --release -- --nocapture test_l2_depth_performance
 
 # Run with logging
-RUST_LOG=debug cargo test
+RUST_LOG=debug cargo test --features orderbook
 
 # Test specific tool
 cargo test test_get_ticker
+cargo test test_orderbook_metrics --features orderbook
 ```
+
+**Test Coverage**:
+- **44 automated tests** for orderbook features (100% pass rate)
+- Unit tests: OrderBook types, manager, errors (23 tests)
+- Integration tests: WebSocket reconnection, rate limiting, metrics (16 tests)
+- Performance tests: L1 metrics (<200ms P95), L2 depth (<300ms P95) (5 tests)
 
 ## 🤝 Contributing
 
