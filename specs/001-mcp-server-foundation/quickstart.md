@@ -14,7 +14,7 @@
 
 ```bash
 # Clone repository (if not already)
-cd /Users/vi/project/tradeforge/mcp-binance-rs
+cd /path/to/mcp-binance-rs
 
 # Build the server
 cargo build --release
@@ -330,7 +330,7 @@ done
 {
   "mcpServers": {
     "binance": {
-      "command": "/Users/vi/project/tradeforge/mcp-binance-rs/target/release/mcp-binance-server",
+      "command": "/path/to/mcp-binance-rs/target/release/mcp-binance-server",
       "env": {
         "BINANCE_API_KEY": "your_key_here",
         "BINANCE_SECRET_KEY": "your_secret_here",

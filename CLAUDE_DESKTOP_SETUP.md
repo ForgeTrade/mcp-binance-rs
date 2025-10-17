@@ -16,12 +16,14 @@ MCP Binance Server is now configured and ready to use with Claude Desktop!
 {
   "mcpServers": {
     "binance": {
-      "command": "/Users/vi/.cargo/bin/cargo",
+      "command": "cargo",
       "args": [
         "run",
         "--release",
+        "--features",
+        "orderbook",
         "--manifest-path",
-        "/Users/vi/project/tradeforge/mcp-binance-rs/Cargo.toml"
+        "/path/to/mcp-binance-rs/Cargo.toml"
       ],
       "env": {
         "BINANCE_API_KEY": "your_testnet_api_key",
@@ -101,7 +103,7 @@ Try these in Claude Desktop chat:
 2. Verify cargo path:
    ```bash
    which cargo
-   # Should output: /Users/vi/.cargo/bin/cargo
+   # Should output: ~/.cargo/bin/cargo or /usr/local/bin/cargo
    ```
 
 3. Check configuration file:
@@ -118,8 +120,8 @@ Try these in Claude Desktop chat:
 
 2. Test server manually:
    ```bash
-   cd /Users/vi/project/tradeforge/mcp-binance-rs
-   cargo run --release
+   cd /path/to/mcp-binance-rs
+   cargo run --release --features orderbook
    ```
 
 3. Check logs in Developer Console

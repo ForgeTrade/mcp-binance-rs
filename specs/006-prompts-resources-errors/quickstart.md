@@ -14,7 +14,7 @@ This quickstart guide provides step-by-step instructions for implementing MCP Pr
 
 1. **Development Environment**:
    ```bash
-   cd /Users/vi/project/tradeforge/mcp-binance-rs
+   cd /path/to/mcp-binance-rs
    git checkout 006-prompts-resources-errors
    cargo --version  # Should be 1.90+ (Edition 2024)
    ```

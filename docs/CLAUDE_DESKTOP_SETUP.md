@@ -38,7 +38,7 @@ realpath target/release/mcp-binance-server
 
 # Or use pwd
 cd target/release && pwd
-# Result: /Users/vi/project/tradeforge/mcp-binance-rs/target/release
+# Result: /path/to/mcp-binance-rs/target/release
 ```
 
 **Important**: Claude Desktop requires an **absolute path**, not relative paths like `./target/release/...`
@@ -76,7 +76,7 @@ touch ~/Library/Application\ Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "binance": {
-      "command": "/Users/vi/project/tradeforge/mcp-binance-rs/target/release/mcp-binance-server",
+      "command": "/path/to/mcp-binance-rs/target/release/mcp-binance-server",
       "env": {
         "BINANCE_API_KEY": "your_actual_api_key_here",
         "BINANCE_SECRET_KEY": "your_actual_secret_key_here",
