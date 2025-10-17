@@ -61,7 +61,7 @@ futures-util = { version = "0.3", optional = true }
 
 # Middleware - tower ecosystem for rate limiting, CORS, tracing
 tower = { version = "0.5.2", optional = true, features = ["limit", "buffer"] }
-tower-http = { version = "0.6.2", optional = true, features = ["trace", "cors", "catch-panic"] }
+tower-http = { version = "0.6.6", optional = true, features = ["trace", "cors", "catch-panic"] }
 governor = { version = "0.6", optional = true }
 
 [features]
@@ -87,3 +87,17 @@ harness = false
 [profile.dev]
 opt-level = 0
 debug = true
+
+[dev-dependencies]
+# Test framework dependencies
+wiremock = "0.6"
+rstest = "0.26"
+serial_test = "3.2"
+dotenv = "0.15"
+
+# WebSocket testing dependencies
+tokio-tungstenite = { version = "0.28.0", features = ["rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+
+[profile.test]
+opt-level = 1
