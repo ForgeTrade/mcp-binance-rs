@@ -28,7 +28,8 @@ A powerful Model Context Protocol (MCP) server that brings Binance cryptocurrenc
 
 ```bash
 # Clone the repository
-cd /Users/vi/project/tradeforge/mcp-binance-rs
+git clone https://github.com/tradeforge/mcp-binance-rs.git
+cd mcp-binance-rs
 
 # Build the MCP server
 cargo build --release
@@ -52,12 +53,12 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "binance": {
-      "command": "/Users/vi/.cargo/bin/cargo",
+      "command": "cargo",
       "args": [
         "run",
         "--release",
         "--manifest-path",
-        "/Users/vi/project/tradeforge/mcp-binance-rs/Cargo.toml"
+        "/path/to/mcp-binance-rs/Cargo.toml"
       ],
       "env": {
         "BINANCE_API_KEY": "your_testnet_api_key",
@@ -443,7 +444,7 @@ export BINANCE_SECRET_KEY="your_secret"
 
 ### Tools not appearing in Claude Desktop
 
-1. **Check config path**: Ensure `/Users/vi/.cargo/bin/cargo` exists
+1. **Check config path**: Ensure `cargo` is in your PATH
    ```bash
    which cargo
    ```
@@ -465,8 +466,10 @@ export BINANCE_SECRET_KEY="your_secret"
 
 Use full path to cargo in config:
 ```json
-"command": "/Users/vi/.cargo/bin/cargo"
+"command": "/path/to/.cargo/bin/cargo"
 ```
+
+Or add cargo to your PATH and restart Claude Desktop.
 
 ### Empty tools list `{"tools":[]}`
 
