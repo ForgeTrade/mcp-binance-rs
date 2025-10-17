@@ -13,6 +13,12 @@ use crate::config::Credentials;
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
 
+#[cfg(feature = "orderbook")]
+use std::sync::Arc;
+
+#[cfg(feature = "orderbook")]
+use crate::orderbook::OrderBookManager;
+
 /// Main Binance MCP Server struct
 ///
 /// This struct holds the server state including Binance API client, credentials,
@@ -27,6 +33,9 @@ pub struct BinanceServer {
     pub tool_router: ToolRouter<Self>,
     /// Prompt router for MCP prompt routing
     pub prompt_router: PromptRouter<Self>,
+    /// Order book manager for depth analysis (feature-gated)
+    #[cfg(feature = "orderbook")]
+    pub orderbook_manager: Arc<OrderBookManager>,
 }
 
 impl BinanceServer {
@@ -56,11 +65,16 @@ impl BinanceServer {
 
         let binance_client = BinanceClient::new();
 
+        #[cfg(feature = "orderbook")]
+        let orderbook_manager = Arc::new(OrderBookManager::new(Arc::new(binance_client.clone())));
+
         Self {
             binance_client,
             credentials,
             tool_router: Self::tool_router(),
             prompt_router: Self::create_prompt_router(),
+            #[cfg(feature = "orderbook")]
+            orderbook_manager,
         }
     }
 

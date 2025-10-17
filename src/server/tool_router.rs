@@ -451,4 +451,93 @@ impl BinanceServer {
             response_json.to_string(),
         )]))
     }
+
+    /// Get L1 aggregated metrics for quick spread assessment
+    ///
+    /// Provides lightweight order book analysis (15% token cost vs L2-full):
+    /// - Spread in basis points
+    /// - Microprice (volume-weighted fair price)
+    /// - Bid/ask volume imbalance
+    /// - Wall detection (large levels)
+    /// - VWAP-based slippage estimates
+    ///
+    /// First request: 2-3s (lazy initialization). Subsequent: <200ms (cached).
+    #[cfg(feature = "orderbook")]
+    #[tool(
+        description = "Get L1 aggregated order book metrics for quick spread assessment. Includes spread, microprice, imbalance, walls, and slippage estimates. Lightweight (15% token cost vs full depth)."
+    )]
+    pub async fn get_orderbook_metrics(
+        &self,
+        params: Parameters<crate::orderbook::tools::GetOrderBookMetricsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let metrics = crate::orderbook::tools::get_orderbook_metrics(
+            self.orderbook_manager.clone(),
+            params.0,
+        )
+        .await
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+        let response_json = serde_json::to_value(&metrics)
+            .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]))
+    }
+
+    /// Get L2 depth with compact integer encoding
+    ///
+    /// Token cost: 50% (L2-lite with 20 levels) or 100% (L2-full with 100 levels).
+    ///
+    /// Compact encoding reduces JSON size by ~40%:
+    /// - price_scale = 100 (e.g., 67650.00 → 6765000)
+    /// - qty_scale = 100000 (e.g., 1.234 → 123400)
+    ///
+    /// First request: 2-3s (lazy initialization). Subsequent: <300ms (cached).
+    #[cfg(feature = "orderbook")]
+    #[tool(
+        description = "Get L2 order book depth with compact integer encoding. Returns price levels and quantities. Use levels=20 for L2-lite (50% cost) or levels=100 for L2-full (100% cost)."
+    )]
+    pub async fn get_orderbook_depth(
+        &self,
+        params: Parameters<crate::orderbook::tools::GetOrderBookDepthParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let depth =
+            crate::orderbook::tools::get_orderbook_depth(self.orderbook_manager.clone(), params.0)
+                .await
+                .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+        let response_json = serde_json::to_value(&depth)
+            .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]))
+    }
+
+    /// Get service health status for order book tracking
+    ///
+    /// Returns operational visibility:
+    /// - Overall status (ok/degraded/error)
+    /// - Number of active symbol subscriptions (0-20)
+    /// - Data freshness (last update age in ms)
+    /// - WebSocket connection status
+    ///
+    /// Latency: <50ms (no external API calls).
+    #[cfg(feature = "orderbook")]
+    #[tool(
+        description = "Get order book service health status. Returns connection status, active symbols (0-20), and data freshness. Fast (<50ms, no API calls)."
+    )]
+    pub async fn get_orderbook_health(&self) -> Result<CallToolResult, ErrorData> {
+        let health = crate::orderbook::tools::get_orderbook_health(self.orderbook_manager.clone())
+            .await
+            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+        let response_json = serde_json::to_value(&health)
+            .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]))
+    }
 }

@@ -64,10 +64,15 @@ tower = { version = "0.5.2", optional = true, features = ["limit", "buffer"] }
 tower-http = { version = "0.6.6", optional = true, features = ["trace", "cors", "catch-panic"] }
 governor = { version = "0.6", optional = true }
 
+# Order book depth tools - WebSocket + decimal precision + rate limiting
+# rust_decimal for financial precision (96-bit mantissa)
+rust_decimal = { version = "1.37.2", optional = true, features = ["serde", "serde-with-arbitrary-precision"] }
+
 [features]
 default = []
 http-api = ["axum", "tower", "tower-http", "governor"]
 websocket = ["tokio-tungstenite", "futures-util"]
+orderbook = ["tokio-tungstenite", "futures-util", "rust_decimal", "governor"]
 
 [profile.release]
 lto = true

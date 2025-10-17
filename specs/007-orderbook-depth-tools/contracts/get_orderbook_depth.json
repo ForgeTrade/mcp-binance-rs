@@ -1,0 +1,161 @@
+{
+  "name": "get_orderbook_depth",
+  "description": "Get L2 order book depth data with actual price levels in compact integer format for advanced microstructure analysis. Supports L2-lite (20 levels, default) and L2-full (100 levels). Uses compact integer scaling (price_scale=100, qty_scale=100000) to reduce JSON size by ~40%. Use after get_orderbook_metrics when detailed level-by-level analysis is needed.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Trading pair symbol (case-insensitive, will be uppercased). Example: BTCUSDT, ETHUSDT, BNBBTC. Must be a valid Binance spot trading pair.",
+        "pattern": "^[A-Za-z0-9]+$",
+        "minLength": 6,
+        "maxLength": 12,
+        "examples": ["BTCUSDT", "ETHUSDT", "BNBBTC"]
+      },
+      "levels": {
+        "type": "integer",
+        "description": "Number of bid/ask levels to return. Default: 20 (L2-lite), Max: 100 (L2-full). Progressive disclosure: start with 20, escalate to 100 only if needed.",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20,
+        "examples": [20, 100]
+      }
+    },
+    "required": ["symbol"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Trading pair symbol (uppercased)"
+      },
+      "timestamp": {
+        "type": "integer",
+        "format": "int64",
+        "description": "Snapshot time in milliseconds since Unix epoch"
+      },
+      "price_scale": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Scaling factor for prices (fixed at 100). Actual price = scaled_price / 100",
+        "enum": [100]
+      },
+      "qty_scale": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Scaling factor for quantities (fixed at 100000). Actual qty = scaled_qty / 100000",
+        "enum": [100000]
+      },
+      "bids": {
+        "type": "array",
+        "description": "Bid levels as [scaled_price, scaled_qty] tuples, sorted descending by price (best bid first). Decode: price = scaled_price/100, qty = scaled_qty/100000",
+        "items": {
+          "type": "array",
+          "items": [
+            {"type": "integer", "format": "int64", "description": "Scaled price (divide by price_scale for actual)"},
+            {"type": "integer", "format": "int64", "description": "Scaled quantity (divide by qty_scale for actual)"}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "minItems": 0,
+        "maxItems": 100
+      },
+      "asks": {
+        "type": "array",
+        "description": "Ask levels as [scaled_price, scaled_qty] tuples, sorted ascending by price (best ask first). Decode: price = scaled_price/100, qty = scaled_qty/100000",
+        "items": {
+          "type": "array",
+          "items": [
+            {"type": "integer", "format": "int64", "description": "Scaled price"},
+            {"type": "integer", "format": "int64", "description": "Scaled quantity"}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "minItems": 0,
+        "maxItems": 100
+      }
+    },
+    "required": ["symbol", "timestamp", "price_scale", "qty_scale", "bids", "asks"],
+    "additionalProperties": false
+  },
+  "errors": [
+    {
+      "code": "SYMBOL_NOT_FOUND",
+      "message": "Symbol not found or not supported. Verify symbol is a valid Binance spot trading pair."
+    },
+    {
+      "code": "SYMBOL_LIMIT_REACHED",
+      "message": "Maximum concurrent symbols (20) reached. Close unused symbols to free capacity."
+    },
+    {
+      "code": "RATE_LIMIT_EXCEEDED",
+      "message": "Request queue full, rate limit exceeded. Retry after delay."
+    },
+    {
+      "code": "INVALID_LEVELS",
+      "message": "Levels parameter must be between 1 and 100."
+    },
+    {
+      "code": "INITIALIZATION_FAILED",
+      "message": "Failed to initialize order book. WebSocket connection or snapshot fetch failed after retries."
+    }
+  ],
+  "examples": [
+    {
+      "description": "Get L2-lite (20 levels) for BTCUSDT",
+      "input": {
+        "symbol": "BTCUSDT",
+        "levels": 20
+      },
+      "output": {
+        "symbol": "BTCUSDT",
+        "timestamp": 1699999999123,
+        "price_scale": 100,
+        "qty_scale": 100000,
+        "bids": [
+          [6765050, 123400],
+          [6765000, 80000],
+          [6764950, 45600]
+        ],
+        "asks": [
+          [6765100, 98700],
+          [6765150, 40000],
+          [6765200, 156000]
+        ]
+      }
+    },
+    {
+      "description": "Get L2-full (100 levels) for ETHUSDT",
+      "input": {
+        "symbol": "ETHUSDT",
+        "levels": 100
+      },
+      "output": {
+        "symbol": "ETHUSDT",
+        "timestamp": 1699999999456,
+        "price_scale": 100,
+        "qty_scale": 100000,
+        "bids": [
+          [383250, 2500000],
+          [383245, 1800000]
+        ],
+        "asks": [
+          [383255, 2200000],
+          [383260, 1500000]
+        ]
+      }
+    }
+  ],
+  "notes": [
+    "Compact integer format reduces JSON size by ~40% compared to full decimal representation",
+    "First request for a symbol initializes WebSocket subscription (2-3s latency)",
+    "Subsequent requests are fast (<300ms) from local cache",
+    "If local cache is stale (>5s), system refreshes from REST API snapshot before returning",
+    "Symbol with low liquidity may return fewer than requested levels",
+    "Decoding example: [6765050, 123400] → price=67650.50, qty=1.23400"
+  ]
+}

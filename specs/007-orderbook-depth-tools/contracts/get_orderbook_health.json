@@ -1,0 +1,95 @@
+{
+  "name": "get_orderbook_health",
+  "description": "Get service health status for order book tracking including active symbol count, WebSocket connection status, and data freshness. Use for operational monitoring before making trading decisions based on depth data.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["ok", "degraded", "error"],
+        "description": "Overall health status. 'ok': all systems operational, 'degraded': partial functionality, 'error': critical failure"
+      },
+      "orderbook_symbols_active": {
+        "type": "integer",
+        "format": "uint",
+        "description": "Number of symbols with active WebSocket connections (0-20)",
+        "minimum": 0,
+        "maximum": 20
+      },
+      "last_update_age_ms": {
+        "type": "integer",
+        "format": "int64",
+        "description": "Milliseconds since last successful depth update across all symbols. <5000 is healthy, >5000 indicates staleness.",
+        "minimum": 0
+      },
+      "websocket_connected": {
+        "type": "boolean",
+        "description": "Overall WebSocket health. True if at least one connection is active, false if all connections down."
+      },
+      "timestamp": {
+        "type": "integer",
+        "format": "int64",
+        "description": "Health check time in milliseconds since Unix epoch"
+      },
+      "reason": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "null"}
+        ],
+        "description": "Human-readable error message if status != 'ok'. Null when status is 'ok'."
+      }
+    },
+    "required": ["status", "orderbook_symbols_active", "last_update_age_ms", "websocket_connected", "timestamp"],
+    "additionalProperties": false
+  },
+  "errors": [],
+  "examples": [
+    {
+      "description": "Healthy system with 5 active symbols",
+      "input": {},
+      "output": {
+        "status": "ok",
+        "orderbook_symbols_active": 5,
+        "last_update_age_ms": 150,
+        "websocket_connected": true,
+        "timestamp": 1699999999123,
+        "reason": null
+      }
+    },
+    {
+      "description": "Degraded system with some disconnections",
+      "input": {},
+      "output": {
+        "status": "degraded",
+        "orderbook_symbols_active": 3,
+        "last_update_age_ms": 6500,
+        "websocket_connected": true,
+        "timestamp": 1699999999456,
+        "reason": "2 WebSocket connections reconnecting, data staleness >5s"
+      }
+    },
+    {
+      "description": "Error state with all connections down",
+      "input": {},
+      "output": {
+        "status": "error",
+        "orderbook_symbols_active": 0,
+        "last_update_age_ms": 45000,
+        "websocket_connected": false,
+        "timestamp": 1699999999789,
+        "reason": "All WebSocket connections failed, falling back to REST API"
+      }
+    }
+  ],
+  "notes": [
+    "This tool has no input parameters - returns global service health",
+    "Status rules: 'ok' = all connections healthy + last_update_age_ms <5000, 'degraded' = ≥1 connection active but some down or staleness >5s, 'error' = all connections down",
+    "Use this before critical trading operations to verify data freshness",
+    "Recommended to call periodically (every 30-60s) for monitoring dashboards"
+  ]
+}

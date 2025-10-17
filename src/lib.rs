@@ -8,6 +8,8 @@ pub mod config;
 pub mod error;
 #[cfg(feature = "http-api")]
 pub mod http;
+#[cfg(feature = "orderbook")]
+pub mod orderbook;
 pub mod server;
 pub mod tools;
 
