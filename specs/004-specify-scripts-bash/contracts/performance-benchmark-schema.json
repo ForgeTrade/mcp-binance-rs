@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PerformanceBenchmark",
+  "description": "Schema for performance metrics with pass/fail thresholds",
+  "type": "object",
+  "required": [
+    "benchmark_id",
+    "metric_name",
+    "metric_type",
+    "unit",
+    "threshold_value",
+    "threshold_operator",
+    "sample_size"
+  ],
+  "properties": {
+    "benchmark_id": {
+      "type": "string",
+      "description": "Unique identifier for this benchmark",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "examples": ["rest_api_response_time_p50", "websocket_latency_p95"]
+    },
+    "metric_name": {
+      "type": "string",
+      "description": "Human-readable metric name",
+      "examples": ["Median REST API Response Time", "95th Percentile WebSocket Latency"]
+    },
+    "metric_type": {
+      "type": "string",
+      "enum": ["LATENCY", "THROUGHPUT", "MEMORY_USAGE", "CONNECTION_COUNT", "ERROR_RATE"],
+      "description": "Type of performance metric being measured"
+    },
+    "unit": {
+      "type": "string",
+      "description": "Measurement unit",
+      "examples": ["milliseconds", "requests/second", "MB", "connections", "percent"]
+    },
+    "threshold_value": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Pass/fail boundary value"
+    },
+    "threshold_operator": {
+      "type": "string",
+      "enum": ["LESS_THAN", "LESS_THAN_EQUAL", "GREATER_THAN", "GREATER_THAN_EQUAL"],
+      "description": "Comparison operator for pass/fail determination"
+    },
+    "actual_value": {
+      "type": "number",
+      "description": "Measured value after test execution (null before test runs)"
+    },
+    "percentile": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Percentile value for latency metrics (e.g., 50, 95, 99)"
+    },
+    "sample_size": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "Number of measurements taken (minimum 10 for statistical significance)"
+    }
+  },
+  "examples": [
+    {
+      "benchmark_id": "rest_api_response_time_p50",
+      "metric_name": "Median REST API Response Time",
+      "metric_type": "LATENCY",
+      "unit": "milliseconds",
+      "threshold_value": 500,
+      "threshold_operator": "LESS_THAN",
+      "percentile": 50,
+      "sample_size": 1000,
+      "actual_value": 342
+    },
+    {
+      "benchmark_id": "websocket_throughput",
+      "metric_name": "WebSocket Message Throughput",
+      "metric_type": "THROUGHPUT",
+      "unit": "messages/second",
+      "threshold_value": 1000,
+      "threshold_operator": "GREATER_THAN_EQUAL",
+      "sample_size": 100,
+      "actual_value": 1250
+    },
+    {
+      "benchmark_id": "memory_usage_baseline",
+      "metric_name": "Baseline Memory Usage",
+      "metric_type": "MEMORY_USAGE",
+      "unit": "MB",
+      "threshold_value": 200,
+      "threshold_operator": "LESS_THAN",
+      "sample_size": 50,
+      "actual_value": 145
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "fixtures": [
+    {
+      "fixture_id": "test_credentials",
+      "fixture_type": "CREDENTIALS",
+      "scope": "GLOBAL",
+      "lifecycle": "ONCE",
+      "cleanup_required": false,
+      "data": {
+        "api_key": "testnet_api_key_from_env",
+        "api_secret": "testnet_api_secret_from_env",
+        "environment": "TESTNET"
+      }
+    },
+    {
+      "fixture_id": "valid_bearer_token",
+      "fixture_type": "BEARER_TOKEN",
+      "scope": "SUITE",
+      "lifecycle": "PER_SUITE",
+      "cleanup_required": false,
+      "data": {
+        "token": "test_bearer_token_abc123",
+        "expires_at": "2025-12-31T23:59:59Z",
+        "valid": true
+      }
+    },
+    {
+      "fixture_id": "expired_bearer_token",
+      "fixture_type": "BEARER_TOKEN",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": false,
+      "data": {
+        "token": "expired_token_xyz789",
+        "expires_at": "2020-01-01T00:00:00Z",
+        "valid": false
+      }
+    },
+    {
+      "fixture_id": "sample_market_buy_order",
+      "fixture_type": "SAMPLE_ORDER",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": true,
+      "data": {
+        "symbol": "BTCUSDT",
+        "side": "BUY",
+        "order_type": "MARKET",
+        "quantity": "0.001"
+      }
+    },
+    {
+      "fixture_id": "sample_limit_sell_order",
+      "fixture_type": "SAMPLE_ORDER",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": true,
+      "data": {
+        "symbol": "ETHUSDT",
+        "side": "SELL",
+        "order_type": "LIMIT",
+        "quantity": "0.01",
+        "price": "2000.00",
+        "time_in_force": "GTC"
+      }
+    },
+    {
+      "fixture_id": "mock_binance_ticker_success",
+      "fixture_type": "MOCK_RESPONSE",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": false,
+      "data": {
+        "status_code": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"symbol\":\"BTCUSDT\",\"priceChange\":\"-94.99999800\",\"priceChangePercent\":\"-95.960\",\"weightedAvgPrice\":\"0.29628482\",\"prevClosePrice\":\"0.10002000\",\"lastPrice\":\"4.00000200\",\"lastQty\":\"200.00000000\",\"bidPrice\":\"4.00000000\",\"askPrice\":\"4.00000200\",\"openPrice\":\"99.00000000\",\"highPrice\":\"100.00000000\",\"lowPrice\":\"0.10000000\",\"volume\":\"8913.30000000\",\"quoteVolume\":\"15.30000000\",\"openTime\":1499783499040,\"closeTime\":1499869899040,\"firstId\":28385,\"lastId\":28460,\"count\":76}",
+        "delay_ms": 0
+      }
+    },
+    {
+      "fixture_id": "mock_binance_rate_limit_error",
+      "fixture_type": "MOCK_RESPONSE",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": false,
+      "data": {
+        "status_code": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "Retry-After": "60"
+        },
+        "body": "{\"code\":-1003,\"msg\":\"Too many requests; current limit is 100 requests per minute.\"}",
+        "delay_ms": 0
+      }
+    },
+    {
+      "fixture_id": "mock_binance_timeout",
+      "fixture_type": "MOCK_RESPONSE",
+      "scope": "TEST",
+      "lifecycle": "PER_TEST",
+      "cleanup_required": false,
+      "data": {
+        "status_code": 504,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"code\":-1021,\"msg\":\"Timestamp for this request was 1000ms ahead of the server's time.\"}",
+        "delay_ms": 11000
+      }
+    }
+  ]
+}

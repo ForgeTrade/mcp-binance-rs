@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TestResult",
+  "description": "Schema for test execution results",
+  "type": "object",
+  "required": [
+    "result_id",
+    "test_id",
+    "execution_timestamp",
+    "duration_ms",
+    "status",
+    "assertions_passed",
+    "assertions_failed",
+    "retry_attempt"
+  ],
+  "properties": {
+    "result_id": {
+      "type": "string",
+      "description": "Unique identifier for this test result",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "test_id": {
+      "type": "string",
+      "description": "Reference to the TestCase that was executed",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "execution_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp when test started"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Test execution time in milliseconds"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASSED", "FAILED", "SKIPPED", "ERROR"],
+      "description": "Final test status"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Human-readable error message if test failed"
+    },
+    "stack_trace": {
+      "type": "string",
+      "description": "Full stack trace for debugging failures"
+    },
+    "assertions_passed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of successful assertions"
+    },
+    "assertions_failed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of failed assertions"
+    },
+    "retry_attempt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5,
+      "description": "Which retry iteration (0 = first attempt)"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "URLs to logs, screenshots, or debug data"
+    }
+  }
+}

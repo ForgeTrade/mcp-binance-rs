@@ -15,6 +15,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-16
 - schemars 1.0.4 - JSON Schema generation
 - thiserror 2.0.17 - Error handling
 - tracing 0.1.41 + tracing-subscriber 0.3.20 - Logging
+- N/A (tests use Binance Testnet API and in-memory mock servers) (004-specify-scripts-bash)
 
 ## Project Structure
 ```
@@ -39,10 +40,9 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
 - See constitution.md § Dependency Management for full policy
 
 ## Recent Changes
+- 004-specify-scripts-bash: Added Rust 1.90+ (Edition 2024)
+- 004-specify-scripts-bash: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 003-specify-scripts-bash: Added HTTP REST API and WebSocket support (axum 0.8+, tokio-tungstenite 0.26+, tower 0.5+, tower-http 0.6+)
-- 003-specify-scripts-bash: Added Rust 1.90+ (Edition 2024)
-- 2025-10-16: Updated all dependencies to latest versions (rmcp 0.8.1, tokio 1.48.0, reqwest 0.12.24, serde 1.0.228, serde_json 1.0.145, schemars 1.0.4, thiserror 2.0.17, tracing 0.1.41, tracing-subscriber 0.3.20)
-- 2025-10-16: Upgraded Rust edition from 2021 to 2024
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
