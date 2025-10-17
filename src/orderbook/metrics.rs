@@ -410,14 +410,10 @@ mod tests {
             .collect();
 
         // Create references for detect_walls
-        let bids: Vec<(&Decimal, &Decimal)> = bid_data
-            .iter()
-            .map(|(price, qty)| (price, qty))
-            .collect();
-        let asks: Vec<(&Decimal, &Decimal)> = ask_data
-            .iter()
-            .map(|(price, qty)| (price, qty))
-            .collect();
+        let bids: Vec<(&Decimal, &Decimal)> =
+            bid_data.iter().map(|(price, qty)| (price, qty)).collect();
+        let asks: Vec<(&Decimal, &Decimal)> =
+            ask_data.iter().map(|(price, qty)| (price, qty)).collect();
 
         let walls = detect_walls(&bids, &asks);
         assert!(!walls.bids.is_empty(), "Should detect bid wall");
