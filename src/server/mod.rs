@@ -4,16 +4,19 @@
 //! trait implementation and tool routing logic.
 
 pub mod handler;
+pub mod resources;
 pub mod tool_router;
+pub mod types;
 
 use crate::binance::BinanceClient;
 use crate::config::Credentials;
+use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
 
 /// Main Binance MCP Server struct
 ///
 /// This struct holds the server state including Binance API client, credentials,
-/// and tool router for handling MCP requests.
+/// and routers for handling MCP requests.
 #[derive(Clone)]
 pub struct BinanceServer {
     /// Binance API client for making requests
@@ -22,6 +25,8 @@ pub struct BinanceServer {
     pub credentials: Option<Credentials>,
     /// Tool router for MCP tool routing
     pub tool_router: ToolRouter<Self>,
+    /// Prompt router for MCP prompt routing
+    pub prompt_router: PromptRouter<Self>,
 }
 
 impl BinanceServer {
@@ -55,6 +60,7 @@ impl BinanceServer {
             binance_client,
             credentials,
             tool_router: Self::tool_router(),
+            prompt_router: Self::create_prompt_router(),
         }
     }
 

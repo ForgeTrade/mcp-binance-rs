@@ -13,6 +13,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-16
 - reqwest 0.12.24 - HTTP client (json + rustls-tls)
 - serde 1.0.228 + serde_json 1.0.145 - Serialization
 - schemars 1.0.4 - JSON Schema generation
+- chrono 0.4 - Date and time library with serde support
 - thiserror 2.0.17 - Error handling
 - tracing 0.1.41 + tracing-subscriber 0.3.20 - Logging
 - N/A (tests use Binance Testnet API and in-memory mock servers) (004-specify-scripts-bash)

@@ -3,7 +3,69 @@
 //! Defines error types used throughout the MCP server with secure error messages
 //! that never expose sensitive data.
 
+use std::time::Duration;
 use thiserror::Error;
+
+/// Enhanced error types for MCP protocol with actionable recovery suggestions
+///
+/// This enum provides structured error information with user-friendly messages and
+/// recovery suggestions for common error scenarios.
+#[derive(Debug, Error)]
+pub enum BinanceError {
+    /// Rate limit exceeded error with retry information
+    #[error("Rate limit exceeded. Retry after {retry_after:?}")]
+    RateLimited {
+        retry_after: Duration,
+        current_weight: u32,
+        weight_limit: u32,
+    },
+
+    /// Invalid API credentials error with masked key for debugging
+    #[error("Invalid API credentials. Check environment variables")]
+    InvalidCredentials {
+        masked_key: String,
+        help_url: String,
+    },
+
+    /// Invalid trading symbol error with format guidance
+    #[error("Invalid trading symbol: {provided}")]
+    InvalidSymbol {
+        provided: String,
+        format_help: String,
+        examples: Vec<String>,
+    },
+
+    /// Insufficient balance error with detailed amounts
+    #[error("Insufficient {asset} balance")]
+    InsufficientBalance {
+        asset: String,
+        required: String,
+        available: String,
+    },
+
+    /// Wrapper for existing API errors (backward compatibility)
+    #[error("Binance API error: {0}")]
+    ApiError(#[from] reqwest::Error),
+}
+
+/// Masks an API key for safe error reporting
+///
+/// Returns a string showing only the first 4 and last 4 characters, with asterisks
+/// in between. For keys shorter than 8 characters, returns all asterisks.
+///
+/// # Examples
+///
+/// ```
+/// use mcp_binance_server::error::mask_api_key;
+/// assert_eq!(mask_api_key("AbCdEfGhIjKlMnOpQrStUvWxYz"), "AbCd****WxYz");
+/// assert_eq!(mask_api_key("short"), "*****");
+/// ```
+pub fn mask_api_key(key: &str) -> String {
+    if key.len() <= 8 {
+        return "*".repeat(key.len());
+    }
+    format!("{}****{}", &key[..4], &key[key.len() - 4..])
+}
 
 /// Main error type for MCP Binance Server
 ///
@@ -158,5 +220,69 @@ impl axum::response::IntoResponse for McpError {
         }));
 
         (status, body).into_response()
+    }
+}
+
+// MCP ErrorData conversion for enhanced error reporting
+impl From<BinanceError> for rmcp::ErrorData {
+    fn from(err: BinanceError) -> Self {
+        use rmcp::model::ErrorCode;
+        use serde_json::json;
+
+        match err {
+            BinanceError::RateLimited { retry_after, current_weight, weight_limit } => {
+                rmcp::ErrorData::new(
+                    ErrorCode(-32001),
+                    format!("Rate limit exceeded. Please wait {} seconds before retrying.", retry_after.as_secs()),
+                    Some(json!({
+                        "retry_after_secs": retry_after.as_secs(),
+                        "current_weight": current_weight,
+                        "weight_limit": weight_limit,
+                        "recovery_suggestion": "Reduce request frequency or wait for rate limit window to reset"
+                    }))
+                )
+            },
+
+            BinanceError::InvalidCredentials { masked_key, help_url } => {
+                rmcp::ErrorData::new(
+                    ErrorCode(-32002),
+                    "Invalid API credentials. Please check your BINANCE_API_KEY and BINANCE_SECRET_KEY environment variables.".to_string(),
+                    Some(json!({
+                        "masked_api_key": masked_key,
+                        "help_url": help_url,
+                        "recovery_suggestion": "Verify credentials at https://testnet.binance.vision/ and ensure correct environment variables"
+                    }))
+                )
+            },
+
+            BinanceError::InvalidSymbol { provided, format_help, examples } => {
+                rmcp::ErrorData::new(
+                    ErrorCode(-32003),
+                    format!("Invalid trading symbol '{}'. {}", provided, format_help),
+                    Some(json!({
+                        "provided_symbol": provided,
+                        "valid_examples": examples,
+                        "recovery_suggestion": "Use uppercase symbols without separators (e.g., BTCUSDT, not BTC-USDT)"
+                    }))
+                )
+            },
+
+            BinanceError::InsufficientBalance { asset, required, available } => {
+                rmcp::ErrorData::new(
+                    ErrorCode(-32004),
+                    format!("Insufficient {} balance. Required: {}, Available: {}", asset, required, available),
+                    Some(json!({
+                        "asset": asset,
+                        "required_amount": required,
+                        "available_amount": available,
+                        "recovery_suggestion": "Deposit more funds or reduce order quantity"
+                    }))
+                )
+            },
+
+            BinanceError::ApiError(e) => {
+                rmcp::ErrorData::internal_error(format!("Binance API error: {}", e), None)
+            },
+        }
     }
 }

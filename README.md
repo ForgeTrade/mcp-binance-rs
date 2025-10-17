@@ -280,6 +280,130 @@ You: "Show my open orders"
 Claude: [Uses get_open_orders] "You have 3 open orders..."
 ```
 
+## 🎯 Prompts Support
+
+This server provides AI-guided prompts for trading analysis and risk assessment:
+
+### `trading_analysis`
+Get comprehensive trading analysis and recommendations for a specific trading pair.
+
+**Parameters**:
+- `symbol` - Trading pair (e.g., "BTCUSDT", "ETHUSDT")
+- `strategy` - Optional: "aggressive", "balanced", or "conservative"
+- `risk_tolerance` - Optional: "low", "medium", or "high"
+
+**Example**:
+```
+You: "Analyze BTCUSDT for aggressive trading"
+Claude: [Uses trading_analysis prompt] "Based on current market data:
+- Current Price: $50,234.56 (+2.5% in 24h)
+- Volume: Strong upward momentum
+- Recommendation: Consider entering long positions
+- Risk Factors: High volatility, monitor support at $49,000"
+```
+
+### `portfolio_risk`
+Assess your portfolio risk based on current account balances and market conditions.
+
+**Parameters**: None (uses your API credentials)
+
+**Requires**: API credentials
+
+**Example**:
+```
+You: "Assess my portfolio risk"
+Claude: [Uses portfolio_risk prompt] "Portfolio Risk Analysis:
+- Total Balance: $15,234.56 (0.5 BTC + 10,000 USDT)
+- Risk Level: Moderate
+- BTC Exposure: 33%
+- Recommendations: Diversify into stable assets..."
+```
+
+## 📦 Resources Support
+
+Access live market data and account information through MCP resources:
+
+### Market Resources
+- `binance://market/btcusdt` - Real-time BTCUSDT market data (price, volume, 24h stats)
+- `binance://market/ethusdt` - Real-time ETHUSDT market data
+
+Returns markdown-formatted ticker data with current price, 24h change, volume, and high/low prices.
+
+**Example**:
+```
+You: "Show me the BTCUSDT market resource"
+Claude: [Reads binance://market/btcusdt] "# BTCUSDT Market Data
+Current Price: $50,234.56
+24h Change: +$1,234.56 (+2.5%)
+Volume: 12,345.67 BTC
+High: $51,000.00 | Low: $49,000.00"
+```
+
+### Account Resources
+- `binance://account/balances` - Your current account balances (all assets with non-zero balance)
+
+**Requires**: API credentials
+
+Returns markdown table with Asset, Free Balance, Locked Balance, and Total columns.
+
+**Example**:
+```
+You: "Show my account balances resource"
+Claude: [Reads binance://account/balances] "# Account Balances
+
+| Asset | Free Balance | Locked Balance | Total |
+|-------|--------------|----------------|-------|
+| BTC   | 0.50000000   | 0.00000000     | 0.50000000 |
+| USDT  | 10000.00     | 500.00         | 10500.00 |"
+```
+
+### Orders Resources
+- `binance://orders/open` - Your currently active orders
+
+**Requires**: API credentials
+
+Returns markdown table with Order ID, Symbol, Side, Type, Price, Quantity, and Status columns.
+
+**Example**:
+```
+You: "Show my open orders resource"
+Claude: [Reads binance://orders/open] "# Open Orders
+
+| Order ID | Symbol  | Side | Type  | Price     | Quantity | Status |
+|----------|---------|------|-------|-----------|----------|--------|
+| 12345    | BTCUSDT | BUY  | LIMIT | 49000.00  | 0.001    | NEW    |"
+```
+
+## ⚠️ Enhanced Error Handling
+
+The server provides detailed error messages with recovery suggestions:
+
+| Error Code | Category | Description | Recovery Actions |
+|------------|----------|-------------|------------------|
+| `-32001` | Rate Limit | Too many requests | Wait for retry_after seconds, reduce frequency |
+| `-32002` | Authentication | Invalid/missing API credentials | Check BINANCE_API_KEY and BINANCE_SECRET_KEY environment variables |
+| `-32003` | Validation | Invalid parameters (symbol, quantity, etc.) | Review parameter format and examples |
+| `-32004` | Trading | Insufficient balance or trading restrictions | Check account balance and trading permissions |
+
+**Example Error Response**:
+```json
+{
+  "code": -32001,
+  "message": "Rate limit exceeded. Please wait 60 seconds before retrying.",
+  "data": {
+    "retry_after_secs": 60,
+    "current_weight": 1200,
+    "weight_limit": 1200,
+    "recovery_suggestion": "Reduce request frequency or wait for rate limit window to reset"
+  }
+}
+```
+
+All errors include:
+- **Clear message**: Human-readable description
+- **Error code**: Standard MCP error code for programmatic handling
+- **Recovery data**: Specific actions to resolve the issue (retry timing, missing config, format examples)
+
 ## 🔧 Advanced Usage
 
 ### HTTP REST API Mode
