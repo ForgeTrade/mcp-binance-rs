@@ -8,7 +8,9 @@ use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
     Implementation, InitializeResult, ProtocolVersion, ServerCapabilities, ToolsCapability,
 };
+use rmcp::tool_handler;
 
+#[tool_handler(router = self.tool_router)]
 impl ServerHandler for BinanceServer {
     /// Returns server information and capabilities
     ///
