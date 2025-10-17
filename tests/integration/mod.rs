@@ -24,3 +24,7 @@ pub mod performance;
 pub mod rest_api;
 mod security_extended;
 pub mod websocket;
+
+// Orderbook feature tests
+#[cfg(feature = "orderbook")]
+pub mod orderbook;

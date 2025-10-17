@@ -388,25 +388,36 @@ mod tests {
 
     #[test]
     fn test_walls_detection() {
-        let mut bids = vec![];
-        let mut asks = vec![];
+        // Create test data with owned values
+        let bid_data: Vec<(Decimal, Decimal)> = (0..10)
+            .map(|i| {
+                let price = Decimal::from_str(&format!("{}", 67650 - i)).unwrap();
+                let qty = if i == 5 {
+                    Decimal::from_str("10.0").unwrap() // Large level
+                } else {
+                    Decimal::from_str("1.0").unwrap()
+                };
+                (price, qty)
+            })
+            .collect();
 
-        // Create test data with one large bid
-        for i in 0..10 {
-            let price = Decimal::from_str(&format!("{}", 67650 - i)).unwrap();
-            let qty = if i == 5 {
-                Decimal::from_str("10.0").unwrap() // Large level
-            } else {
-                Decimal::from_str("1.0").unwrap()
-            };
-            bids.push((&price, &qty));
-        }
+        let ask_data: Vec<(Decimal, Decimal)> = (0..10)
+            .map(|i| {
+                let price = Decimal::from_str(&format!("{}", 67651 + i)).unwrap();
+                let qty = Decimal::from_str("1.0").unwrap();
+                (price, qty)
+            })
+            .collect();
 
-        for i in 0..10 {
-            let price = Decimal::from_str(&format!("{}", 67651 + i)).unwrap();
-            let qty = Decimal::from_str("1.0").unwrap();
-            asks.push((&price, &qty));
-        }
+        // Create references for detect_walls
+        let bids: Vec<(&Decimal, &Decimal)> = bid_data
+            .iter()
+            .map(|(price, qty)| (price, qty))
+            .collect();
+        let asks: Vec<(&Decimal, &Decimal)> = ask_data
+            .iter()
+            .map(|(price, qty)| (price, qty))
+            .collect();
 
         let walls = detect_walls(&bids, &asks);
         assert!(!walls.bids.is_empty(), "Should detect bid wall");

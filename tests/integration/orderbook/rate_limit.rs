@@ -113,10 +113,7 @@ async fn test_rate_limiter_single_request() {
     let limiter = RateLimiter::new();
 
     let start = Instant::now();
-    limiter
-        .wait()
-        .await
-        .expect("Single request should succeed");
+    limiter.wait().await.expect("Single request should succeed");
     let elapsed = start.elapsed();
 
     assert!(

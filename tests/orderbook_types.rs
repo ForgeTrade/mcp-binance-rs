@@ -74,9 +74,18 @@ fn test_best_ask_empty() {
 fn test_best_bid_returns_highest() {
     let mut ob = OrderBook::new("BTCUSDT".to_string());
 
-    ob.update_bid(Decimal::from_str("67650.00").unwrap(), Decimal::from_str("1.0").unwrap());
-    ob.update_bid(Decimal::from_str("67649.00").unwrap(), Decimal::from_str("2.0").unwrap());
-    ob.update_bid(Decimal::from_str("67651.00").unwrap(), Decimal::from_str("0.5").unwrap());
+    ob.update_bid(
+        Decimal::from_str("67650.00").unwrap(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    ob.update_bid(
+        Decimal::from_str("67649.00").unwrap(),
+        Decimal::from_str("2.0").unwrap(),
+    );
+    ob.update_bid(
+        Decimal::from_str("67651.00").unwrap(),
+        Decimal::from_str("0.5").unwrap(),
+    );
 
     let best = ob.best_bid().unwrap();
     assert_eq!(best.to_string(), "67651.00");
@@ -86,9 +95,18 @@ fn test_best_bid_returns_highest() {
 fn test_best_ask_returns_lowest() {
     let mut ob = OrderBook::new("BTCUSDT".to_string());
 
-    ob.update_ask(Decimal::from_str("67652.00").unwrap(), Decimal::from_str("1.0").unwrap());
-    ob.update_ask(Decimal::from_str("67653.00").unwrap(), Decimal::from_str("2.0").unwrap());
-    ob.update_ask(Decimal::from_str("67651.00").unwrap(), Decimal::from_str("0.5").unwrap());
+    ob.update_ask(
+        Decimal::from_str("67652.00").unwrap(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    ob.update_ask(
+        Decimal::from_str("67653.00").unwrap(),
+        Decimal::from_str("2.0").unwrap(),
+    );
+    ob.update_ask(
+        Decimal::from_str("67651.00").unwrap(),
+        Decimal::from_str("0.5").unwrap(),
+    );
 
     let best = ob.best_ask().unwrap();
     assert_eq!(best.to_string(), "67651.00");
@@ -98,8 +116,14 @@ fn test_best_ask_returns_lowest() {
 fn test_orderbook_serialization() {
     let mut ob = OrderBook::new("BTCUSDT".to_string());
 
-    ob.update_bid(Decimal::from_str("67650.00").unwrap(), Decimal::from_str("1.234").unwrap());
-    ob.update_ask(Decimal::from_str("67651.00").unwrap(), Decimal::from_str("0.987").unwrap());
+    ob.update_bid(
+        Decimal::from_str("67650.00").unwrap(),
+        Decimal::from_str("1.234").unwrap(),
+    );
+    ob.update_ask(
+        Decimal::from_str("67651.00").unwrap(),
+        Decimal::from_str("0.987").unwrap(),
+    );
 
     let json = serde_json::to_string(&ob).unwrap();
     let deserialized: OrderBook = serde_json::from_str(&json).unwrap();
@@ -123,7 +147,7 @@ fn test_orderbook_depth_compact_encoding() {
 
     // Verify scaling
     assert_eq!(depth.bids[0][0], 6765000); // 67650.00 * 100
-    assert_eq!(depth.bids[0][1], 123400);  // 1.234 * 100000
+    assert_eq!(depth.bids[0][1], 123400); // 1.234 * 100000
 
     // Verify serialization produces compact JSON
     let json = serde_json::to_string(&depth).unwrap();
@@ -226,9 +250,18 @@ fn test_multiple_levels_ordering() {
     let mut ob = OrderBook::new("BTCUSDT".to_string());
 
     // Add bids in random order
-    ob.update_bid(Decimal::from_str("67650.00").unwrap(), Decimal::from_str("1.0").unwrap());
-    ob.update_bid(Decimal::from_str("67652.00").unwrap(), Decimal::from_str("2.0").unwrap());
-    ob.update_bid(Decimal::from_str("67651.00").unwrap(), Decimal::from_str("1.5").unwrap());
+    ob.update_bid(
+        Decimal::from_str("67650.00").unwrap(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    ob.update_bid(
+        Decimal::from_str("67652.00").unwrap(),
+        Decimal::from_str("2.0").unwrap(),
+    );
+    ob.update_bid(
+        Decimal::from_str("67651.00").unwrap(),
+        Decimal::from_str("1.5").unwrap(),
+    );
 
     // BTreeMap should maintain sorted order (ascending)
     let prices: Vec<Decimal> = ob.bids.keys().cloned().collect();

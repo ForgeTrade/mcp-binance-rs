@@ -141,23 +141,29 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiter_queues_excess_requests() {
-        let limiter = RateLimiter::with_quota(2, 5); // Very low quota
+        let limiter = RateLimiter::with_quota(10, 1); // 10 req/min, 1s timeout
 
-        // First 2 requests should succeed
-        assert!(limiter.wait().await.is_ok());
+        // First request should succeed immediately
         assert!(limiter.wait().await.is_ok());
 
-        // Third request should queue (this test just verifies it doesn't panic)
-        // In real scenario, it would wait for next permit
+        // Exhaust the quota
+        for _ in 0..9 {
+            limiter.wait().await.ok();
+        }
+
+        // Next request should be delayed (queued) but eventually succeed or timeout
         let start = std::time::Instant::now();
         let result = limiter.wait().await;
         let elapsed = start.elapsed();
 
-        // Should either succeed after waiting or timeout
+        // Should either succeed after waiting or timeout after 1 second
         assert!(result.is_ok() || result.is_err());
         if result.is_ok() {
-            // If succeeded, should have waited at least some time
+            // If succeeded, should have waited some time
             assert!(elapsed.as_millis() > 0);
+        } else {
+            // If timed out, should be close to 1 second
+            assert!(elapsed.as_secs() >= 1);
         }
     }
 

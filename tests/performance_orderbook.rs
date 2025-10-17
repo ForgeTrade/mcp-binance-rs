@@ -137,7 +137,10 @@ mod orderbook_performance {
         let avg_latency_us: u128 = latencies.iter().sum::<u128>() / latencies.len() as u128;
         let avg_latency_ms = avg_latency_us as f64 / 1000.0;
 
-        println!("L2-lite (20 levels) average latency: {:.2}ms", avg_latency_ms);
+        println!(
+            "L2-lite (20 levels) average latency: {:.2}ms",
+            avg_latency_ms
+        );
 
         // L2-lite should be faster than L2-full
         assert!(
