@@ -45,3 +45,5 @@ release/
 tests/tmp/
 .coverage
 
+# Skills directory for reference/learning
+skills/
