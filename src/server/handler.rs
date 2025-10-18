@@ -3,8 +3,12 @@
 //! Implements the MCP protocol ServerHandler trait for the Binance server.
 //! Provides server info, capabilities, and lifecycle management.
 
+#[cfg(feature = "orderbook_analytics")]
+use crate::orderbook::analytics::types::FlowDirection;
 use crate::server::BinanceServer;
 use crate::server::resources::{ResourceCategory, ResourceUri};
+#[cfg(feature = "orderbook_analytics")]
+use crate::server::types::{AdvancedAnalysisArgs, MarketHealthCheckArgs, OrderFlowSnapshotArgs};
 use crate::server::types::{PortfolioRiskArgs, TradingAnalysisArgs};
 use rmcp::handler::server::ServerHandler;
 use rmcp::handler::server::router::prompt::PromptRouter;
@@ -540,6 +544,402 @@ impl BinanceServer {
 
         Ok(GetPromptResult {
             description: None,
+            messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
+        })
+    }
+
+    /// Advanced market analysis prompt using orderbook analytics
+    ///
+    /// Provides comprehensive market analysis combining order flow, volume profile,
+    /// anomaly detection, and health scoring for professional trading decisions.
+    #[cfg(feature = "orderbook_analytics")]
+    #[prompt(
+        name = "advanced_market_analysis",
+        description = "Perform deep market microstructure analysis using order flow, volume profile, anomaly detection, and health scoring"
+    )]
+    pub async fn advanced_market_analysis(
+        &self,
+        Parameters(args): Parameters<AdvancedAnalysisArgs>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        use crate::orderbook::analytics::{
+            anomaly::detect_anomalies, flow::calculate_order_flow, health::calculate_health_score,
+            profile::generate_volume_profile,
+        };
+        use rust_decimal::Decimal;
+        use std::str::FromStr;
+
+        let symbol = &args.symbol;
+        let storage = &self.snapshot_storage;
+
+        // Determine time windows based on analysis depth
+        let (flow_window, health_window, profile_hours) = match args.analysis_depth {
+            Some(crate::server::types::AnalysisDepth::Quick) => (60, 300, 1), // 1min flow, 5min health, 1h profile
+            Some(crate::server::types::AnalysisDepth::Deep) => (300, 1800, 24), // 5min flow, 30min health, 24h profile
+            _ => (60, 300, 4), // Default: 1min flow, 5min health, 4h profile
+        };
+
+        // 1. Get order flow analysis
+        let order_flow = calculate_order_flow(storage, symbol, flow_window, None)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to calculate order flow: {}", e), None)
+            })?;
+
+        // 2. Get volume profile (using 0.01 as default tick size for USDT pairs)
+        let tick_size = Decimal::from_str("0.01").unwrap();
+        let volume_profile = generate_volume_profile(symbol, profile_hours, tick_size)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to generate volume profile: {}", e), None)
+            })?;
+
+        // 3. Detect anomalies
+        let anomalies = detect_anomalies(storage, symbol, flow_window)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to detect anomalies: {}", e), None)
+            })?;
+
+        // 4. Get market health score
+        let health = calculate_health_score(storage, symbol, health_window)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to calculate health score: {}", e), None)
+            })?;
+
+        // Format comprehensive markdown response
+        let mut content = format!(
+            "# Advanced Market Analysis: {}\n\n\
+            **Analysis Time**: {}\n\
+            **Analysis Depth**: {:?}\n\n---\n\n",
+            symbol,
+            chrono::Utc::now().to_rfc3339(),
+            args.analysis_depth
+                .unwrap_or(crate::server::types::AnalysisDepth::Standard)
+        );
+
+        // Section 1: Order Flow Analysis
+        content.push_str(&format!(
+            "## 1. Order Flow Analysis (Last {} seconds)\n\n\
+            **Flow Direction**: **{:?}** {}\n\
+            - Bid Flow Rate: {:.2} orders/sec\n\
+            - Ask Flow Rate: {:.2} orders/sec\n\
+            - Net Flow: {:+.2} orders/sec\n\
+            - Cumulative Delta: {:+.2}\n\n\
+            *Interpretation*: {}\n\n---\n\n",
+            flow_window,
+            order_flow.flow_direction,
+            match order_flow.flow_direction {
+                FlowDirection::StrongBuy => "📈",
+                FlowDirection::ModerateBuy => "↗️",
+                FlowDirection::Neutral => "➡️",
+                FlowDirection::ModerateSell => "↘️",
+                FlowDirection::StrongSell => "📉",
+            },
+            order_flow.bid_flow_rate,
+            order_flow.ask_flow_rate,
+            order_flow.net_flow,
+            order_flow.cumulative_delta,
+            match order_flow.flow_direction {
+                FlowDirection::StrongBuy =>
+                    "Strong buying pressure with bid flow significantly higher than ask flow.",
+                FlowDirection::ModerateBuy =>
+                    "Moderate buying pressure. Bid flow exceeds ask flow.",
+                FlowDirection::Neutral => "Balanced market. Bid and ask flows are roughly equal.",
+                FlowDirection::ModerateSell =>
+                    "Moderate selling pressure. Ask flow exceeds bid flow.",
+                FlowDirection::StrongSell =>
+                    "Strong selling pressure with ask flow significantly higher than bid flow.",
+            }
+        ));
+
+        // Section 2: Volume Profile
+        content.push_str(&format!(
+            "## 2. Volume Profile (Last {} hours)\n\n\
+            **Key Price Levels:**\n\
+            - **POC (Point of Control)**: {}\n\
+            - **VAH (Value Area High)**: {}\n\
+            - **VAL (Value Area Low)**: {}\n\n\
+            **Histogram**: {} price bins, {} total bin size\n\n\
+            *Trading Strategy*: Price levels with high volume act as support/resistance. \
+            POC represents fair value.\n\n---\n\n",
+            profile_hours,
+            volume_profile
+                .poc_price
+                .map(|p| format!("${}", p))
+                .unwrap_or("N/A".to_string()),
+            volume_profile
+                .vah_price
+                .map(|p| format!("${}", p))
+                .unwrap_or("N/A".to_string()),
+            volume_profile
+                .val_price
+                .map(|p| format!("${}", p))
+                .unwrap_or("N/A".to_string()),
+            volume_profile.histogram.len(),
+            volume_profile.bin_size
+        ));
+
+        // Section 3: Market Health
+        content.push_str(&format!(
+            "## 3. Market Microstructure Health\n\n\
+            **Overall Health Score**: **{:.0}/100** ({}) {}\n\n\
+            **Component Breakdown:**\n\
+            - Spread Stability: {:.0}/100\n\
+            - Liquidity Depth: {:.0}/100\n\
+            - Flow Balance: {:.0}/100\n\
+            - Update Rate: {:.0}/100\n\n\
+            **Trading Recommendation**: *{}*\n\n---\n\n",
+            health.overall_score,
+            health.health_level,
+            match health.health_level.as_str() {
+                "Excellent" => "✅",
+                "Good" => "✅",
+                "Fair" => "⚠️",
+                "Poor" => "⚠️",
+                "Critical" => "🔥",
+                _ => "",
+            },
+            health.spread_stability_score,
+            health.liquidity_depth_score,
+            health.flow_balance_score,
+            health.update_rate_score,
+            health.recommended_action
+        ));
+
+        // Section 4: Anomaly Detection
+        content.push_str(&format!(
+            "## 4. Anomaly Detection\n\n\
+            **Detected Anomalies**: {}\n\n",
+            anomalies.len()
+        ));
+
+        if anomalies.is_empty() {
+            content.push_str("**No anomalies detected** - Market conditions appear normal.\n\n");
+        } else {
+            for anomaly in &anomalies {
+                let severity_emoji = match anomaly.severity {
+                    crate::orderbook::analytics::types::Severity::Critical => "🔥",
+                    crate::orderbook::analytics::types::Severity::High => "⚠️",
+                    crate::orderbook::analytics::types::Severity::Medium => "⚠️",
+                    crate::orderbook::analytics::types::Severity::Low => "ℹ️",
+                };
+
+                content.push_str(&format!(
+                    "### {:?} ({:?}) {}\n\
+                    - **Confidence**: {:.1}%\n\
+                    - **Action**: {}\n\n",
+                    anomaly.anomaly_type,
+                    anomaly.severity,
+                    severity_emoji,
+                    anomaly.confidence * 100.0,
+                    anomaly.recommended_action
+                ));
+            }
+        }
+
+        content.push_str("---\n\n");
+
+        // Section 5: Summary
+        content.push_str(&format!(
+            "## 5. Summary & Recommendations\n\n\
+            **Market Bias**: {:?}\n\
+            **Risk Level**: {}\n\
+            **Health Score**: {:.0}/100\n\
+            **Anomalies**: {}\n\n\
+            *Analysis generated using advanced orderbook analytics*\n\n\
+            *Last updated: {}*\n",
+            order_flow.flow_direction,
+            health.health_level,
+            health.overall_score,
+            if anomalies.is_empty() {
+                "None"
+            } else {
+                "Detected (see above)"
+            },
+            chrono::Utc::now().to_rfc3339()
+        ));
+
+        Ok(GetPromptResult {
+            description: Some("Comprehensive market microstructure analysis".to_string()),
+            messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
+        })
+    }
+
+    /// Quick order flow snapshot prompt
+    ///
+    /// Provides instant order flow direction and bid/ask pressure for rapid trading decisions.
+    #[cfg(feature = "orderbook_analytics")]
+    #[prompt(
+        name = "orderflow_snapshot",
+        description = "Get instant order flow direction and bid/ask pressure for rapid trading decisions"
+    )]
+    pub async fn orderflow_snapshot(
+        &self,
+        Parameters(args): Parameters<OrderFlowSnapshotArgs>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        use crate::orderbook::analytics::flow::calculate_order_flow;
+
+        let symbol = &args.symbol;
+        let window_secs = args.window_secs.unwrap_or(60).clamp(10, 300);
+        let storage = &self.snapshot_storage;
+
+        let order_flow = calculate_order_flow(storage, symbol, window_secs, None)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to calculate order flow: {}", e), None)
+            })?;
+
+        let content = format!(
+            "# Order Flow Snapshot: {}\n\n\
+            **Window**: Last {} seconds\n\
+            **Timestamp**: {}\n\n\
+            ## Flow Direction: **{:?}** {}\n\n\
+            **Flow Metrics:**\n\
+            - Bid Flow: {:.2} orders/sec\n\
+            - Ask Flow: {:.2} orders/sec\n\
+            - Net Flow: {:+.2} ({})\n\
+            - Cumulative Delta: {:+.2}\n\n\
+            **Quick Take**: {}\n\n\
+            **Action**: {}\n",
+            symbol,
+            window_secs,
+            chrono::Utc::now().to_rfc3339(),
+            order_flow.flow_direction,
+            match order_flow.flow_direction {
+                FlowDirection::StrongBuy => "📈",
+                FlowDirection::ModerateBuy => "↗️",
+                FlowDirection::Neutral => "➡️",
+                FlowDirection::ModerateSell => "↘️",
+                FlowDirection::StrongSell => "📉",
+            },
+            order_flow.bid_flow_rate,
+            order_flow.ask_flow_rate,
+            order_flow.net_flow,
+            if order_flow.net_flow > 0.0 {
+                "buy pressure"
+            } else {
+                "sell pressure"
+            },
+            order_flow.cumulative_delta,
+            match order_flow.flow_direction {
+                FlowDirection::StrongBuy => format!(
+                    "Aggressive buying. Bid flow {:.1}x stronger than ask flow.",
+                    order_flow.bid_flow_rate / order_flow.ask_flow_rate.max(0.01)
+                ),
+                FlowDirection::ModerateBuy =>
+                    "Moderate bullish momentum. More buyers than sellers.".to_string(),
+                FlowDirection::Neutral => "Balanced market. No clear directional bias.".to_string(),
+                FlowDirection::ModerateSell =>
+                    "Moderate bearish momentum. More sellers than buyers.".to_string(),
+                FlowDirection::StrongSell => format!(
+                    "Aggressive selling. Ask flow {:.1}x stronger than bid flow.",
+                    order_flow.ask_flow_rate / order_flow.bid_flow_rate.max(0.01)
+                ),
+            },
+            match order_flow.flow_direction {
+                FlowDirection::StrongBuy | FlowDirection::ModerateBuy =>
+                    "Consider long entries if aligned with strategy. Strong demand evident.",
+                FlowDirection::Neutral => "Wait for clearer direction. Market is balanced.",
+                FlowDirection::ModerateSell | FlowDirection::StrongSell =>
+                    "Consider short entries or exit longs. Supply pressure dominant.",
+            }
+        );
+
+        Ok(GetPromptResult {
+            description: Some("Real-time order flow snapshot".to_string()),
+            messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
+        })
+    }
+
+    /// Market health check prompt
+    ///
+    /// Provides instant market health assessment before entering trades.
+    #[cfg(feature = "orderbook_analytics")]
+    #[prompt(
+        name = "market_health_check",
+        description = "Quick health check of market conditions before trading"
+    )]
+    pub async fn market_health_check(
+        &self,
+        Parameters(args): Parameters<MarketHealthCheckArgs>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        use crate::orderbook::analytics::health::calculate_health_score;
+
+        let symbol = &args.symbol;
+        let storage = &self.snapshot_storage;
+
+        let health = calculate_health_score(storage, symbol, 300)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(format!("Failed to calculate health score: {}", e), None)
+            })?;
+
+        let content = format!(
+            "# Market Health: {}\n\n\
+            **Overall Score**: **{:.0}/100** {} **{}**\n\n\
+            **Status**: {}\n\n\
+            **Breakdown:**\n\
+            - {} Spread Stability: {:.0}/100\n\
+            - {} Liquidity: {:.0}/100\n\
+            - {} Flow Balance: {:.0}/100\n\
+            - {} Activity: {:.0}/100\n\n\
+            **Risk Assessment**: {}\n\n\
+            **Recommendation**: {}\n\n\
+            *Last updated: {}*\n",
+            symbol,
+            health.overall_score,
+            match health.health_level.as_str() {
+                "Excellent" => "✅",
+                "Good" => "✅",
+                "Fair" => "⚠️",
+                "Poor" => "⚠️",
+                "Critical" => "🔥",
+                _ => "",
+            },
+            health.health_level,
+            if health.overall_score >= 60.0 {
+                "Safe to trade with normal position sizes"
+            } else {
+                "Exercise caution - market conditions deteriorating"
+            },
+            if health.spread_stability_score >= 70.0 {
+                "✅"
+            } else {
+                "⚠️"
+            },
+            health.spread_stability_score,
+            if health.liquidity_depth_score >= 70.0 {
+                "✅"
+            } else {
+                "⚠️"
+            },
+            health.liquidity_depth_score,
+            if health.flow_balance_score >= 70.0 {
+                "✅"
+            } else {
+                "⚠️"
+            },
+            health.flow_balance_score,
+            if health.update_rate_score >= 70.0 {
+                "✅"
+            } else {
+                "⚠️"
+            },
+            health.update_rate_score,
+            match health.overall_score {
+                s if s >= 80.0 => "Low risk. Market conditions are optimal.",
+                s if s >= 60.0 => "Low-medium risk. Normal trading conditions.",
+                s if s >= 40.0 => "Medium risk. Exercise caution.",
+                s if s >= 20.0 => "High risk. Reduce position sizes.",
+                _ => "SEVERE RISK. Halt new trades immediately.",
+            },
+            health.recommended_action,
+            chrono::Utc::now().to_rfc3339()
+        );
+
+        Ok(GetPromptResult {
+            description: Some("Market health assessment".to_string()),
             messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
         })
     }

@@ -19,6 +19,9 @@ use std::sync::Arc;
 #[cfg(feature = "orderbook")]
 use crate::orderbook::OrderBookManager;
 
+#[cfg(feature = "orderbook_analytics")]
+use crate::orderbook::analytics::storage::SnapshotStorage;
+
 /// Main Binance MCP Server struct
 ///
 /// This struct holds the server state including Binance API client, credentials,
@@ -36,6 +39,9 @@ pub struct BinanceServer {
     /// Order book manager for depth analysis (feature-gated)
     #[cfg(feature = "orderbook")]
     pub orderbook_manager: Arc<OrderBookManager>,
+    /// Snapshot storage for analytics (feature-gated)
+    #[cfg(feature = "orderbook_analytics")]
+    pub snapshot_storage: Arc<SnapshotStorage>,
 }
 
 impl BinanceServer {
@@ -68,6 +74,16 @@ impl BinanceServer {
         #[cfg(feature = "orderbook")]
         let orderbook_manager = Arc::new(OrderBookManager::new(Arc::new(binance_client.clone())));
 
+        #[cfg(feature = "orderbook_analytics")]
+        let snapshot_storage = {
+            let storage_path = std::env::var("ORDERBOOK_STORAGE_PATH")
+                .unwrap_or_else(|_| "./data/orderbook_snapshots".to_string());
+            Arc::new(
+                SnapshotStorage::new(std::path::Path::new(&storage_path))
+                    .expect("Failed to initialize snapshot storage"),
+            )
+        };
+
         Self {
             binance_client,
             credentials,
@@ -75,6 +91,8 @@ impl BinanceServer {
             prompt_router: Self::create_prompt_router(),
             #[cfg(feature = "orderbook")]
             orderbook_manager,
+            #[cfg(feature = "orderbook_analytics")]
+            snapshot_storage,
         }
     }
 
