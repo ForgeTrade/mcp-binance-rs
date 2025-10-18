@@ -77,16 +77,16 @@ Tasks are organized by **user story** to enable independent implementation and t
 
 ### Tasks
 
-- [ ] T023 [P] [US2] Add VolumeProfile struct to `src/orderbook/analytics/types.rs` with histogram, bin_size, bin_count, POC, VAH, VAL fields
-- [ ] T024 [P] [US2] Add VolumeBin struct to `src/orderbook/analytics/types.rs` (price_level, volume, trade_count)
-- [ ] T025 [P] [US2] Add LiquidityVacuum struct to `src/orderbook/analytics/types.rs` (vacuum_id, price_range_low/high, volume_deficit_pct, expected_impact)
-- [ ] T026 [US2] Create `src/orderbook/analytics/trade_stream.rs` with @aggTrade WebSocket connection logic (wss://stream.binance.com:9443/ws/<symbol>@aggTrade)
-- [ ] T027 [US2] Implement exponential backoff reconnection (1s, 2s, 4s, 8s, max 60s) in `trade_stream.rs`
-- [ ] T028 [US2] Create `src/orderbook/analytics/profile.rs` with `generate_volume_profile()` async function
-- [ ] T029 [US2] Implement adaptive_bin_size() in `profile.rs` using formula `max(tick_size × 10, price_range / 100)` (clarification Q1)
-- [ ] T030 [US2] Implement bin_trades_by_price() in `profile.rs` grouping @aggTrade data into bins
-- [ ] T031 [US2] Implement find_poc_vah_val() in `profile.rs` (POC = max volume bin, VAH/VAL = 70% volume boundaries)
-- [ ] T032 [US2] Create `get_volume_profile` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_volume_profile.json schema
+- [X] T023 [P] [US2] Add VolumeProfile struct to `src/orderbook/analytics/types.rs` with histogram, bin_size, bin_count, POC, VAH, VAL fields
+- [X] T024 [P] [US2] Add VolumeBin struct to `src/orderbook/analytics/types.rs` (price_level, volume, trade_count)
+- [X] T025 [P] [US2] Add LiquidityVacuum struct to `src/orderbook/analytics/types.rs` (vacuum_id, price_range_low/high, volume_deficit_pct, expected_impact)
+- [X] T026 [US2] Create `src/orderbook/analytics/trade_stream.rs` with @aggTrade WebSocket connection logic (wss://stream.binance.com:9443/ws/<symbol>@aggTrade)
+- [X] T027 [US2] Implement exponential backoff reconnection (1s, 2s, 4s, 8s, max 60s) in `trade_stream.rs`
+- [X] T028 [US2] Create `src/orderbook/analytics/profile.rs` with `generate_volume_profile()` async function
+- [X] T029 [US2] Implement adaptive_bin_size() in `profile.rs` using formula `max(tick_size × 10, price_range / 100)` (clarification Q1)
+- [X] T030 [US2] Implement bin_trades_by_price() in `profile.rs` grouping @aggTrade data into bins
+- [X] T031 [US2] Implement find_poc_vah_val() in `profile.rs` (POC = max volume bin, VAH/VAL = 70% volume boundaries)
+- [X] T032 [US2] Create `get_volume_profile` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_volume_profile.json schema
 
 ---
 

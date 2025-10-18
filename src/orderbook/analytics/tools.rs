@@ -5,9 +5,11 @@
 
 use super::{
     flow::calculate_order_flow,
+    profile::generate_volume_profile,
     storage::SnapshotStorage,
-    types::OrderFlowSnapshot,
+    types::{OrderFlowSnapshot, VolumeProfile},
 };
+use rust_decimal::Decimal;
 use anyhow::{Context, Result};
 use rmcp::tool;
 use schemars::JsonSchema;
@@ -72,7 +74,52 @@ pub async fn get_order_flow(
         .context("Failed to calculate order flow")
 }
 
-// TODO: T032 - get_volume_profile tool
+/// MCP Tool: Get Volume Profile (T032, FR-007 to FR-008)
+///
+/// Generates volume distribution histogram with POC/VAH/VAL for support/resistance identification.
+///
+/// # Arguments
+/// - `symbol`: Trading pair (e.g., "BTCUSDT")
+/// - `duration_hours`: Analysis period in hours (default: 24)
+/// - `tick_size`: Price tick size for adaptive binning (e.g., "0.01" for BTCUSDT)
+///
+/// # Returns
+/// VolumeProfile with:
+/// - histogram: Price bins with volume and trade counts
+/// - poc_price: Point of Control (max volume price level)
+/// - vah_price: Value Area High (70% volume upper bound)
+/// - val_price: Value Area Low (70% volume lower bound)
+///
+/// # Example Usage
+/// ```json
+/// {
+///   "symbol": "ETHUSDT",
+///   "duration_hours": 24,
+///   "tick_size": "0.01"
+/// }
+/// ```
+#[tool(
+    description = "Generate volume profile histogram showing volume distribution across price levels. Returns POC (Point of Control), VAH/VAL (Value Area High/Low) for support/resistance identification."
+)]
+pub async fn get_volume_profile(
+    #[tool(description = "Trading pair symbol (e.g., ETHUSDT)")]
+    symbol: String,
+
+    #[tool(description = "Analysis period in hours (default: 24)")]
+    duration_hours: Option<u32>,
+
+    #[tool(description = "Price tick size for binning (e.g., 0.01)")]
+    tick_size: String,
+) -> Result<VolumeProfile> {
+    let duration = duration_hours.unwrap_or(24);
+    let tick = Decimal::from_str_exact(&tick_size)
+        .context("Invalid tick_size format")?;
+
+    generate_volume_profile(&symbol, duration, tick)
+        .await
+        .context("Failed to generate volume profile")
+}
+
 // TODO: T040 - detect_anomalies tool
 // TODO: T041 - get_liquidity_vacuums tool
 // TODO: T042 - get_health_score tool
