@@ -61,10 +61,11 @@ impl SnapshotStorage {
     pub async fn put(&self, symbol: &str, timestamp_sec: i64, value: &[u8]) -> Result<()> {
         let key = format!("{}:{}", symbol, timestamp_sec);
         let db = self.db.clone();
+        let value_owned = value.to_vec(); // Convert to owned Vec<u8> for 'static
 
         // Spawn blocking to avoid blocking async runtime
         tokio::task::spawn_blocking(move || {
-            db.put(key.as_bytes(), value)
+            db.put(key.as_bytes(), &value_owned)
                 .context("Failed to write snapshot to RocksDB")
         })
         .await??;
@@ -104,13 +105,12 @@ impl SnapshotStorage {
                 let key_str = String::from_utf8_lossy(&key);
 
                 // Parse timestamp from key format "{symbol}:{timestamp}"
-                if let Some(timestamp_str) = key_str.split(':').nth(1) {
-                    if let Ok(timestamp) = timestamp_str.parse::<i64>() {
-                        if timestamp < cutoff_timestamp {
-                            batch.delete(&key);
-                            deleted_count += 1;
-                        }
-                    }
+                if let Some(timestamp_str) = key_str.split(':').nth(1)
+                    && let Ok(timestamp) = timestamp_str.parse::<i64>()
+                    && timestamp < cutoff_timestamp
+                {
+                    batch.delete(&key);
+                    deleted_count += 1;
                 }
             }
 

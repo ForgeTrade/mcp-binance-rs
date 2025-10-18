@@ -115,5 +115,9 @@ dotenv = "0.15"
 tokio-tungstenite = { version = "0.28.0", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 
+# Orderbook analytics test dependencies
+tempfile = "3.14"
+rust_decimal_macros = "1.37"
+
 [profile.test]
 opt-level = 1

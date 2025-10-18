@@ -657,25 +657,16 @@ impl BinanceServer {
         content.push_str(&format!(
             "## 2. Volume Profile (Last {} hours)\n\n\
             **Key Price Levels:**\n\
-            - **POC (Point of Control)**: {}\n\
-            - **VAH (Value Area High)**: {}\n\
-            - **VAL (Value Area Low)**: {}\n\n\
-            **Histogram**: {} price bins, {} total bin size\n\n\
+            - **POC (Point of Control)**: ${}\n\
+            - **VAH (Value Area High)**: ${}\n\
+            - **VAL (Value Area Low)**: ${}\n\n\
+            **Histogram**: {} price bins, {} bin size\n\n\
             *Trading Strategy*: Price levels with high volume act as support/resistance. \
             POC represents fair value.\n\n---\n\n",
             profile_hours,
-            volume_profile
-                .poc_price
-                .map(|p| format!("${}", p))
-                .unwrap_or("N/A".to_string()),
-            volume_profile
-                .vah_price
-                .map(|p| format!("${}", p))
-                .unwrap_or("N/A".to_string()),
-            volume_profile
-                .val_price
-                .map(|p| format!("${}", p))
-                .unwrap_or("N/A".to_string()),
+            volume_profile.point_of_control,
+            volume_profile.value_area_high,
+            volume_profile.value_area_low,
             volume_profile.histogram.len(),
             volume_profile.bin_size
         ));
@@ -732,7 +723,7 @@ impl BinanceServer {
                     anomaly.anomaly_type,
                     anomaly.severity,
                     severity_emoji,
-                    anomaly.confidence * 100.0,
+                    anomaly.confidence_score * 100.0,
                     anomaly.recommended_action
                 ));
             }

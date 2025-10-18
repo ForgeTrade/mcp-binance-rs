@@ -10,7 +10,7 @@ use super::{
     types::{AnomalyType, MarketMicrostructureAnomaly, Severity},
 };
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use uuid::Uuid;
 
 /// Detect market microstructure anomalies (T036, FR-003 to FR-005)
@@ -126,17 +126,20 @@ fn detect_quote_stuffing(
         anomaly_type: AnomalyType::QuoteStuffing {
             update_rate,
             fill_rate,
-            duration_secs: window_duration_secs,
         },
         symbol: symbol.to_string(),
-        timestamp: Utc::now(),
-        confidence,
+        detection_timestamp: Utc::now(),
+        confidence_score: confidence,
         severity,
+        affected_price_levels: Vec::new(),
         recommended_action: format!(
             "Potential HFT manipulation detected. Update rate: {:.0}/sec (>500 threshold), Fill rate: {:.1}% (<10% threshold). Consider delaying execution or widening spreads.",
             update_rate,
             fill_rate * 100.0
         ),
+        metadata: serde_json::json!({
+            "window_duration_secs": window_duration_secs
+        }),
     })
 }
 
@@ -170,8 +173,13 @@ fn detect_iceberg_orders(
         return None;
     }
 
-    let price_level = "50000.00".to_string(); // Placeholder
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    let price_level = Decimal::from_str("50000.00").unwrap_or(Decimal::ZERO); // Placeholder
     let absorbed_volume = 10.5; // Placeholder
+    let median_refill_rate_val = median_absorption;
+    let refill_rate_multiplier = refill_rate;
 
     let confidence = ((refill_rate - 5.0) / 5.0).min(1.0);
     let severity = if refill_rate > 10.0 {
@@ -184,17 +192,22 @@ fn detect_iceberg_orders(
         anomaly_id: Uuid::new_v4(),
         anomaly_type: AnomalyType::IcebergOrder {
             price_level,
-            absorbed_volume,
-            refill_count,
+            refill_rate_multiplier,
+            median_refill_rate: median_refill_rate_val,
         },
         symbol: symbol.to_string(),
-        timestamp: Utc::now(),
-        confidence,
+        detection_timestamp: Utc::now(),
+        confidence_score: confidence,
         severity,
+        affected_price_levels: vec![price_level],
         recommended_action: format!(
             "Large hidden order detected at price level (refill rate {:.1}x median). Consider this level as strong support/resistance. {:.1} volume absorbed with {} refills.",
             refill_rate, absorbed_volume, refill_count
         ),
+        metadata: serde_json::json!({
+            "absorbed_volume": absorbed_volume,
+            "refill_count": refill_count
+        }),
     })
 }
 
@@ -264,15 +277,17 @@ fn detect_flash_crash_risk(
             cancellation_rate,
         },
         symbol: symbol.to_string(),
-        timestamp: Utc::now(),
-        confidence,
+        detection_timestamp: Utc::now(),
+        confidence_score: confidence,
         severity,
+        affected_price_levels: Vec::new(),
         recommended_action: format!(
             "CRITICAL: Flash crash risk detected! Depth loss: {:.1}% (>80%), Spread: {:.1}x baseline (>10x), Cancellations: {:.1}% (>90%). HALT TRADING IMMEDIATELY. Wait for market stabilization.",
             depth_loss_pct,
             spread_multiplier,
             cancellation_rate * 100.0
         ),
+        metadata: serde_json::Value::Null,
     })
 }
 
@@ -295,13 +310,13 @@ mod tests {
 
     #[test]
     fn test_detect_quote_stuffing() {
-        // Create 600 snapshots over 1 second (600 updates/sec)
-        let snapshots: Vec<OrderBookSnapshot> = (0..600)
+        // Create 800 snapshots over 1 second (800 updates/sec = High severity)
+        let snapshots: Vec<OrderBookSnapshot> = (0..800)
             .map(|i| OrderBookSnapshot {
                 bids: vec![("100.0".to_string(), "1.0".to_string())],
                 asks: vec![("101.0".to_string(), "1.0".to_string())],
                 update_id: i,
-                timestamp: 1000 + i,
+                timestamp: 1000 + i as i64,
             })
             .collect();
 
@@ -321,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_detect_flash_crash_risk() {
-        // Create initial thick orderbook
+        // Create initial thick orderbook (12 levels total)
         let thick = OrderBookSnapshot {
             bids: vec![
                 ("100.0".to_string(), "10.0".to_string()),
@@ -329,6 +344,7 @@ mod tests {
                 ("99.8".to_string(), "3.0".to_string()),
                 ("99.7".to_string(), "2.0".to_string()),
                 ("99.6".to_string(), "1.0".to_string()),
+                ("99.5".to_string(), "1.0".to_string()),
             ],
             asks: vec![
                 ("101.0".to_string(), "10.0".to_string()),
@@ -336,15 +352,16 @@ mod tests {
                 ("101.2".to_string(), "3.0".to_string()),
                 ("101.3".to_string(), "2.0".to_string()),
                 ("101.4".to_string(), "1.0".to_string()),
+                ("101.5".to_string(), "1.0".to_string()),
             ],
             update_id: 1,
             timestamp: 1000,
         };
 
-        // Create thin orderbook (>80% depth loss)
+        // Create thin orderbook (>80% depth loss: 12 levels → 2 levels = 83.3% loss)
         let thin = OrderBookSnapshot {
-            bids: vec![("90.0".to_string(), "0.1".to_string())], // 1 level (was 5)
-            asks: vec![("200.0".to_string(), "0.1".to_string())], // 1 level (was 5), huge spread
+            bids: vec![("90.0".to_string(), "0.1".to_string())], // 1 level (was 6)
+            asks: vec![("200.0".to_string(), "0.1".to_string())], // 1 level (was 6), huge spread
             update_id: 2,
             timestamp: 1001,
         };

@@ -4,21 +4,16 @@
 //! and anomaly detection features.
 
 use super::{
-    anomaly::detect_anomalies,
-    flow::calculate_order_flow,
-    health::calculate_health_score,
-    profile::generate_volume_profile,
-    storage::SnapshotStorage,
-    types::{
-        LiquidityVacuum, MarketMicrostructureAnomaly, MicrostructureHealth, OrderFlowSnapshot,
-        VolumeProfile,
-    },
+    anomaly::detect_anomalies, flow::calculate_order_flow, health::calculate_health_score,
+    profile::generate_volume_profile, storage::SnapshotStorage, types::LiquidityVacuum,
 };
-use anyhow::{Context, Result};
-use rmcp::tool;
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::{CallToolResult, Content};
+use rmcp::{ErrorData, tool};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// Input parameters for get_order_flow tool
@@ -28,193 +23,174 @@ pub struct GetOrderFlowInput {
     pub symbol: String,
 
     /// Analysis window duration in seconds (default: 60)
-    #[serde(default = "default_window_duration")]
-    pub window_duration_secs: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_duration_secs: Option<u32>,
 }
 
-fn default_window_duration() -> u32 {
-    60
+/// Input parameters for get_volume_profile tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GetVolumeProfileInput {
+    /// Trading pair symbol (e.g., "ETHUSDT")
+    pub symbol: String,
+
+    /// Analysis period in hours (default: 24)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_hours: Option<u32>,
+
+    /// Price tick size for binning (e.g., "0.01")
+    pub tick_size: String,
 }
 
-/// MCP Tool: Get Order Flow Analysis (T022, FR-001 to FR-006)
+/// Input parameters for detect_market_anomalies tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DetectMarketAnomaliesInput {
+    /// Trading pair symbol (e.g., "BTCUSDT")
+    pub symbol: String,
+
+    /// Analysis window duration in seconds (default: 60)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_duration_secs: Option<u32>,
+}
+
+/// Input parameters for get_liquidity_vacuums tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GetLiquidityVacuumsInput {
+    /// Trading pair symbol (e.g., "BTCUSDT")
+    pub symbol: String,
+
+    /// Analysis period in hours (default: 24)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_hours: Option<u32>,
+
+    /// Price tick size for binning (e.g., "0.01")
+    pub tick_size: String,
+}
+
+/// Input parameters for get_microstructure_health tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GetMicrostructureHealthInput {
+    /// Trading pair symbol (e.g., "BTCUSDT")
+    pub symbol: String,
+
+    /// Analysis window duration in seconds (default: 300)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_duration_secs: Option<u32>,
+}
+
+/// Get Order Flow Analysis (T022, FR-001 to FR-006)
 ///
-/// Calculates bid/ask pressure and flow direction over a time window.
-///
-/// # Arguments
-/// - `symbol`: Trading pair (e.g., "BTCUSDT")
-/// - `window_duration_secs`: Analysis window in seconds (default: 60)
-///
-/// # Returns
-/// OrderFlowSnapshot with:
-/// - bid_flow_rate: Bid updates per second
-/// - ask_flow_rate: Ask updates per second
-/// - net_flow: Bid flow - ask flow
-/// - flow_direction: StrongBuy | ModerateBuy | Neutral | ModerateSell | StrongSell
-/// - cumulative_delta: Cumulative bid-ask quantity difference
-///
-/// # Example Usage
-/// ```json
-/// {
-///   "symbol": "BTCUSDT",
-///   "window_duration_secs": 60
-/// }
-/// ```
+/// Analyzes bid/ask pressure and flow direction over a time window.
+/// Returns flow rates, net flow, direction classification, and cumulative delta.
 #[tool(
     description = "Analyze order flow direction and bid/ask pressure over time window. Returns flow rates, net flow, direction classification, and cumulative delta."
 )]
 pub async fn get_order_flow(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
+    params: Parameters<GetOrderFlowInput>,
+    storage: Arc<SnapshotStorage>,
+) -> Result<CallToolResult, ErrorData> {
+    let window_duration = params.0.window_duration_secs.unwrap_or(60);
 
-    #[tool(description = "Analysis window duration in seconds (default: 60)")]
-    window_duration_secs: Option<u32>,
-
-    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
-) -> Result<OrderFlowSnapshot> {
-    let window_duration = window_duration_secs.unwrap_or(60);
-
-    calculate_order_flow(&storage, &symbol, window_duration, None)
+    let flow_snapshot = calculate_order_flow(&storage, &params.0.symbol, window_duration, None)
         .await
-        .context("Failed to calculate order flow")
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+    let response_json = serde_json::to_value(&flow_snapshot)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response_json.to_string(),
+    )]))
 }
 
-/// MCP Tool: Get Volume Profile (T032, FR-007 to FR-008)
+/// Get Volume Profile (T032, FR-007 to FR-008)
 ///
 /// Generates volume distribution histogram with POC/VAH/VAL for support/resistance identification.
-///
-/// # Arguments
-/// - `symbol`: Trading pair (e.g., "BTCUSDT")
-/// - `duration_hours`: Analysis period in hours (default: 24)
-/// - `tick_size`: Price tick size for adaptive binning (e.g., "0.01" for BTCUSDT)
-///
-/// # Returns
-/// VolumeProfile with:
-/// - histogram: Price bins with volume and trade counts
-/// - poc_price: Point of Control (max volume price level)
-/// - vah_price: Value Area High (70% volume upper bound)
-/// - val_price: Value Area Low (70% volume lower bound)
-///
-/// # Example Usage
-/// ```json
-/// {
-///   "symbol": "ETHUSDT",
-///   "duration_hours": 24,
-///   "tick_size": "0.01"
-/// }
-/// ```
+/// Returns POC (Point of Control), VAH/VAL (Value Area High/Low) for identifying support/resistance.
 #[tool(
     description = "Generate volume profile histogram showing volume distribution across price levels. Returns POC (Point of Control), VAH/VAL (Value Area High/Low) for support/resistance identification."
 )]
 pub async fn get_volume_profile(
-    #[tool(description = "Trading pair symbol (e.g., ETHUSDT)")] symbol: String,
+    params: Parameters<GetVolumeProfileInput>,
+) -> Result<CallToolResult, ErrorData> {
+    let duration = params.0.duration_hours.unwrap_or(24);
+    let tick = Decimal::from_str_exact(&params.0.tick_size)
+        .map_err(|e| ErrorData::invalid_params(format!("Invalid tick_size format: {}", e), None))?;
 
-    #[tool(description = "Analysis period in hours (default: 24)")] duration_hours: Option<u32>,
-
-    #[tool(description = "Price tick size for binning (e.g., 0.01)")] tick_size: String,
-) -> Result<VolumeProfile> {
-    let duration = duration_hours.unwrap_or(24);
-    let tick = Decimal::from_str_exact(&tick_size).context("Invalid tick_size format")?;
-
-    generate_volume_profile(&symbol, duration, tick)
+    let volume_profile = generate_volume_profile(&params.0.symbol, duration, tick)
         .await
-        .context("Failed to generate volume profile")
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+    let response_json = serde_json::to_value(&volume_profile)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response_json.to_string(),
+    )]))
 }
 
-/// MCP Tool: Detect Market Anomalies (T040, FR-003 to FR-005)
+/// Detect Market Anomalies (T040, FR-003 to FR-005)
 ///
-/// Detects market microstructure anomalies including HFT manipulation patterns.
-///
-/// # Arguments
-/// - `symbol`: Trading pair (e.g., "BTCUSDT")
-/// - `window_duration_secs`: Analysis window in seconds (default: 60)
-///
-/// # Returns
-/// Array of detected anomalies with:
-/// - anomaly_type: QuoteStuffing | IcebergOrder | FlashCrashRisk
-/// - severity: Low | Medium | High | Critical
-/// - confidence: 0.0-1.0 detection confidence
-/// - recommended_action: Trading guidance
-///
-/// # Detectors
-/// 1. **Quote Stuffing** (FR-003): >500 updates/sec, <10% fill rate
-/// 2. **Iceberg Orders** (FR-004): Refill rate >5x median
-/// 3. **Flash Crash Risk** (FR-005): >80% depth loss, >10x spread, >90% cancellations
-///
-/// # Example Usage
-/// ```json
-/// {
-///   "symbol": "BTCUSDT",
-///   "window_duration_secs": 60
-/// }
-/// ```
+/// Detects market microstructure anomalies including quote stuffing (HFT manipulation),
+/// iceberg orders (hidden institutional orders), and flash crash risk (extreme liquidity deterioration).
+/// Returns anomalies with severity levels and recommended actions.
 #[tool(
     description = "Detect market microstructure anomalies including quote stuffing (HFT manipulation), iceberg orders (hidden institutional orders), and flash crash risk (extreme liquidity deterioration). Returns anomalies with severity levels and recommended actions."
 )]
 pub async fn detect_market_anomalies(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
+    params: Parameters<DetectMarketAnomaliesInput>,
+    storage: Arc<SnapshotStorage>,
+) -> Result<CallToolResult, ErrorData> {
+    let window_duration = params.0.window_duration_secs.unwrap_or(60);
 
-    #[tool(description = "Analysis window duration in seconds (default: 60)")]
-    window_duration_secs: Option<u32>,
-
-    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
-) -> Result<Vec<MarketMicrostructureAnomaly>> {
-    let window_duration = window_duration_secs.unwrap_or(60);
-
-    detect_anomalies(&storage, &symbol, window_duration)
+    let anomalies = detect_anomalies(&storage, &params.0.symbol, window_duration)
         .await
-        .context("Failed to detect market anomalies")
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+    let response_json = serde_json::to_value(&anomalies)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response_json.to_string(),
+    )]))
 }
 
-/// MCP Tool: Get Liquidity Vacuums (T041, FR-008)
+/// Get Liquidity Vacuums (T041, FR-008)
 ///
-/// Identifies price ranges with abnormally low volume (<20% of median).
-///
-/// # Arguments
-/// - `symbol`: Trading pair (e.g., "BTCUSDT")
-/// - `duration_hours`: Analysis period in hours (default: 24)
-/// - `tick_size`: Price tick size (e.g., "0.01")
-///
-/// # Returns
-/// Array of liquidity vacuums with:
-/// - price_range_low/high: Vacuum boundaries
-/// - volume_deficit_pct: How much below median volume
-/// - expected_impact: Price movement risk (FastMovement | ModerateMovement | Negligible)
-///
-/// # Example Usage
-/// ```json
-/// {
-///   "symbol": "BTCUSDT",
-///   "duration_hours": 24,
-///   "tick_size": "0.01"
-/// }
-/// ```
+/// Identifies price ranges with abnormally low volume (<20% median). These zones are prone to
+/// fast price movements when crossed. Returns vacuum locations with expected impact levels.
 #[tool(
     description = "Identify liquidity vacuums - price ranges with abnormally low volume (<20% median). These zones are prone to fast price movements when crossed. Returns vacuum locations with expected impact levels."
 )]
 pub async fn get_liquidity_vacuums(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
-
-    #[tool(description = "Analysis period in hours (default: 24)")] duration_hours: Option<u32>,
-
-    #[tool(description = "Price tick size for binning (e.g., 0.01)")] tick_size: String,
-) -> Result<Vec<LiquidityVacuum>> {
-    let duration = duration_hours.unwrap_or(24);
-    let tick = Decimal::from_str_exact(&tick_size).context("Invalid tick_size format")?;
+    params: Parameters<GetLiquidityVacuumsInput>,
+) -> Result<CallToolResult, ErrorData> {
+    let duration = params.0.duration_hours.unwrap_or(24);
+    let tick = Decimal::from_str_exact(&params.0.tick_size)
+        .map_err(|e| ErrorData::invalid_params(format!("Invalid tick_size format: {}", e), None))?;
 
     // Generate volume profile first
-    let profile = generate_volume_profile(&symbol, duration, tick)
+    let profile = generate_volume_profile(&params.0.symbol, duration, tick)
         .await
-        .context("Failed to generate volume profile for vacuum detection")?;
+        .map_err(|e| {
+            ErrorData::internal_error(format!("Failed to generate volume profile: {}", e), None)
+        })?;
 
     // Calculate median volume
     let median_volume = if profile.histogram.is_empty() {
-        return Ok(Vec::new());
+        let response_json = serde_json::json!([]);
+        return Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]));
     } else {
         let mut volumes: Vec<Decimal> = profile.histogram.iter().map(|b| b.volume).collect();
         volumes.sort();
         volumes[volumes.len() / 2]
     };
 
-    let vacuum_threshold = median_volume * Decimal::from_str("0.20")?; // <20% of median
+    let vacuum_threshold = median_volume
+        * Decimal::from_str("0.20").map_err(|e| {
+            ErrorData::internal_error(format!("Decimal conversion error: {}", e), None)
+        })?;
 
     // Identify vacuums
     let mut vacuums = Vec::new();
@@ -236,12 +212,20 @@ pub async fn get_liquidity_vacuums(
                 .sum::<Decimal>()
                 / Decimal::from(idx - start_idx);
 
-            let volume_deficit_pct = ((median_volume - avg_volume_in_range) / median_volume)
-                * Decimal::from_str("100.0")?;
+            let volume_deficit_pct_decimal = ((median_volume - avg_volume_in_range)
+                / median_volume)
+                * Decimal::from_str("100.0").map_err(|e| {
+                    ErrorData::internal_error(format!("Decimal conversion error: {}", e), None)
+                })?;
 
-            let expected_impact = if volume_deficit_pct > Decimal::from_str("80.0")? {
+            let volume_deficit_pct = volume_deficit_pct_decimal
+                .to_string()
+                .parse::<f64>()
+                .map_err(|e| ErrorData::internal_error(format!("Parse error: {}", e), None))?;
+
+            let expected_impact = if volume_deficit_pct > 80.0 {
                 super::types::ImpactLevel::FastMovement
-            } else if volume_deficit_pct > Decimal::from_str("50.0")? {
+            } else if volume_deficit_pct > 50.0 {
                 super::types::ImpactLevel::ModerateMovement
             } else {
                 super::types::ImpactLevel::Negligible
@@ -249,64 +233,50 @@ pub async fn get_liquidity_vacuums(
 
             vacuums.push(LiquidityVacuum {
                 vacuum_id: uuid::Uuid::new_v4(),
-                symbol: symbol.clone(),
+                symbol: params.0.symbol.clone(),
                 price_range_low,
                 price_range_high,
                 volume_deficit_pct,
+                median_volume,
+                actual_volume: avg_volume_in_range,
                 expected_impact,
-                detected_at: chrono::Utc::now(),
+                detection_timestamp: chrono::Utc::now(),
             });
 
             vacuum_start = None;
         }
     }
 
-    Ok(vacuums)
+    let response_json = serde_json::to_value(&vacuums)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response_json.to_string(),
+    )]))
 }
 
-/// MCP Tool: Get Microstructure Health Score (T042, FR-010)
+/// Get Microstructure Health Score (T042, FR-010)
 ///
-/// Calculates composite 0-100 market health score.
-///
-/// # Arguments
-/// - `symbol`: Trading pair (e.g., "BTCUSDT")
-/// - `window_duration_secs`: Analysis window in seconds (default: 300)
-///
-/// # Returns
-/// MicrostructureHealth with:
-/// - overall_score: 0-100 composite score
-/// - Component scores: spread_stability, liquidity_depth, flow_balance, update_rate
-/// - health_level: Excellent | Good | Fair | Poor | Critical
-/// - recommended_action: Trading guidance
-///
-/// # Scoring
-/// - 80-100: Excellent (safe to trade aggressively)
-/// - 60-79: Good (normal conditions)
-/// - 40-59: Fair (exercise caution)
-/// - 20-39: Poor (reduce positions)
-/// - 0-19: Critical (halt trading)
-///
-/// # Example Usage
-/// ```json
-/// {
-///   "symbol": "BTCUSDT",
-///   "window_duration_secs": 300
-/// }
-/// ```
+/// Calculates composite 0-100 market health score combining spread stability, liquidity depth,
+/// flow balance, and update rate. Returns overall score, component breakdown, health level,
+/// and recommended actions.
 #[tool(
     description = "Calculate market microstructure health score (0-100) combining spread stability, liquidity depth, flow balance, and update rate. Returns overall score, component breakdown, health level, and recommended actions."
 )]
 pub async fn get_microstructure_health(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
+    params: Parameters<GetMicrostructureHealthInput>,
+    storage: Arc<SnapshotStorage>,
+) -> Result<CallToolResult, ErrorData> {
+    let window_duration = params.0.window_duration_secs.unwrap_or(300);
 
-    #[tool(description = "Analysis window duration in seconds (default: 300)")]
-    window_duration_secs: Option<u32>,
-
-    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
-) -> Result<MicrostructureHealth> {
-    let window_duration = window_duration_secs.unwrap_or(300);
-
-    calculate_health_score(&storage, &symbol, window_duration)
+    let health = calculate_health_score(&storage, &params.0.symbol, window_duration)
         .await
-        .context("Failed to calculate microstructure health")
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+
+    let response_json = serde_json::to_value(&health)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization error: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response_json.to_string(),
+    )]))
 }

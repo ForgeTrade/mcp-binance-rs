@@ -45,7 +45,7 @@ impl OrderBookSnapshot {
         Self {
             bids,
             asks,
-            update_id: orderbook.last_update_id,
+            update_id: orderbook.last_update_id as u64,
             timestamp,
         }
     }
@@ -104,7 +104,6 @@ pub async fn capture_snapshot_task(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_decimal::Decimal;
 
     #[test]
     fn test_snapshot_serialization() -> Result<()> {

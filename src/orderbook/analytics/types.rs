@@ -187,12 +187,18 @@ pub struct VolumeProfile {
     pub time_period_end: DateTime<Utc>,
 
     /// Lowest price in histogram
+
+    #[schemars(with = "String")]
     pub price_range_low: Decimal,
 
     /// Highest price in histogram
+
+    #[schemars(with = "String")]
     pub price_range_high: Decimal,
 
     /// Price bin width (adaptive tick-based)
+
+    #[schemars(with = "String")]
     pub bin_size: Decimal,
 
     /// Number of bins in histogram (1-200)
@@ -203,15 +209,23 @@ pub struct VolumeProfile {
     pub histogram: Vec<VolumeBin>,
 
     /// Sum of all bin volumes
+
+    #[schemars(with = "String")]
     pub total_volume: Decimal,
 
     /// Price level with highest volume (POC)
+
+    #[schemars(with = "String")]
     pub point_of_control: Decimal,
 
     /// Upper boundary of value area (70% volume)
+
+    #[schemars(with = "String")]
     pub value_area_high: Decimal,
 
     /// Lower boundary of value area (70% volume)
+
+    #[schemars(with = "String")]
     pub value_area_low: Decimal,
 }
 
@@ -219,9 +233,13 @@ pub struct VolumeProfile {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct VolumeBin {
     /// Center price of bin
+
+    #[schemars(with = "String")]
     pub price_level: Decimal,
 
     /// Total volume traded at this level
+
+    #[schemars(with = "String")]
     pub volume: Decimal,
 
     /// Number of trades in bin
@@ -237,6 +255,7 @@ pub struct VolumeBin {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MarketMicrostructureAnomaly {
     /// Unique identifier (UUID v4)
+    #[schemars(with = "String")]
     pub anomaly_id: Uuid,
 
     /// Trading pair symbol
@@ -254,6 +273,8 @@ pub struct MarketMicrostructureAnomaly {
     pub confidence_score: f64,
 
     /// Price levels involved (for iceberg/flash crash)
+
+    #[schemars(with = "Vec<String>")]
     pub affected_price_levels: Vec<Decimal>,
 
     /// Severity based on confidence + type
@@ -278,6 +299,7 @@ pub enum AnomalyType {
         fill_rate: f64,
     },
     IcebergOrder {
+        #[schemars(with = "String")]
         price_level: Decimal,
         /// >5x median triggers
         refill_rate_multiplier: f64,
@@ -300,6 +322,7 @@ pub enum AnomalyType {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LiquidityVacuum {
     /// Unique identifier (UUID v4)
+    #[schemars(with = "String")]
     pub vacuum_id: Uuid,
 
     /// Trading pair symbol
@@ -307,9 +330,13 @@ pub struct LiquidityVacuum {
     pub symbol: String,
 
     /// Lower boundary
+
+    #[schemars(with = "String")]
     pub price_range_low: Decimal,
 
     /// Upper boundary (> price_range_low)
+
+    #[schemars(with = "String")]
     pub price_range_high: Decimal,
 
     /// Volume <20% of median (0.0-100.0)
@@ -317,9 +344,13 @@ pub struct LiquidityVacuum {
     pub volume_deficit_pct: f64,
 
     /// Median volume for comparison
+
+    #[schemars(with = "String")]
     pub median_volume: Decimal,
 
     /// Volume in vacuum range
+
+    #[schemars(with = "String")]
     pub actual_volume: Decimal,
 
     /// Predicted price movement speed
@@ -335,6 +366,7 @@ pub struct LiquidityVacuum {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AbsorptionEvent {
     /// Unique identifier (UUID v4)
+    #[schemars(with = "String")]
     pub event_id: Uuid,
 
     /// Trading pair symbol
@@ -342,9 +374,13 @@ pub struct AbsorptionEvent {
     pub symbol: String,
 
     /// Exact price of absorption
+
+    #[schemars(with = "String")]
     pub price_level: Decimal,
 
     /// Cumulative volume absorbed
+
+    #[schemars(with = "String")]
     pub absorbed_volume: Decimal,
 
     /// Number of refills observed (≥ 1)
@@ -373,6 +409,46 @@ pub enum EntityType {
     Whale,
     /// Insufficient data
     Unknown,
+}
+
+/// Market microstructure health score (FR-010)
+///
+/// Composite 0-100 health score combining spread stability, liquidity depth,
+/// flow balance, and update rate metrics.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MicrostructureHealth {
+    /// Trading pair symbol
+    #[schemars(regex(pattern = r"^[A-Z]{4,12}$"))]
+    pub symbol: String,
+
+    /// When health was calculated
+    pub timestamp: DateTime<Utc>,
+
+    /// Composite health score (0-100)
+    #[schemars(range(min = 0.0, max = 100.0))]
+    pub overall_score: f64,
+
+    /// Spread stability component score (0-100)
+    #[schemars(range(min = 0.0, max = 100.0))]
+    pub spread_stability_score: f64,
+
+    /// Liquidity depth component score (0-100)
+    #[schemars(range(min = 0.0, max = 100.0))]
+    pub liquidity_depth_score: f64,
+
+    /// Flow balance component score (0-100)
+    #[schemars(range(min = 0.0, max = 100.0))]
+    pub flow_balance_score: f64,
+
+    /// Update rate component score (0-100)
+    #[schemars(range(min = 0.0, max = 100.0))]
+    pub update_rate_score: f64,
+
+    /// Health level classification
+    pub health_level: String,
+
+    /// Trading guidance based on health
+    pub recommended_action: String,
 }
 
 #[cfg(test)]

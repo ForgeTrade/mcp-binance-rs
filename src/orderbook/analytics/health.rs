@@ -132,7 +132,7 @@ fn calculate_spread_stability_score(
     // Convert CV to 0-100 score (lower CV = higher score)
     // CV < 0.05 = 100, CV > 0.5 = 0
     let score = 100.0 * (1.0 - (cv / 0.5).min(1.0));
-    score.max(0.0).min(100.0)
+    score.clamp(0.0, 100.0)
 }
 
 /// Calculate liquidity depth score (0-100)
@@ -154,7 +154,7 @@ fn calculate_liquidity_depth_score(
 
     // Normalize to 0-100 (assume 100+ levels = perfect depth)
     let score = (avg_depth / 100.0) * 100.0;
-    score.max(0.0).min(100.0)
+    score.clamp(0.0, 100.0)
 }
 
 /// Calculate flow balance score (0-100)
@@ -180,15 +180,15 @@ fn calculate_flow_balance_score(snapshots: &[super::storage::snapshot::OrderBook
 
     // Perfect balance = 1.0, score = 100
     // Strong imbalance (ratio <0.5 or >2.0) = 0
-    let score = if ratio >= 0.8 && ratio <= 1.2 {
+    let score = if (0.8..=1.2).contains(&ratio) {
         100.0 // Excellent balance
-    } else if ratio >= 0.5 && ratio <= 2.0 {
+    } else if (0.5..=2.0).contains(&ratio) {
         50.0 + (50.0 * (1.0 - ((ratio - 1.0).abs() / 1.0)))
     } else {
         0.0 // Severe imbalance
     };
 
-    score.max(0.0).min(100.0)
+    score.clamp(0.0, 100.0)
 }
 
 /// Calculate update rate score (0-100)
@@ -204,7 +204,7 @@ fn calculate_update_rate_score(
 
     // Optimal: 10-100 updates/sec = 100 score
     // Too slow (<1/sec) or too fast (>500/sec) = low score
-    let score = if update_rate >= 10.0 && update_rate <= 100.0 {
+    let score = if (10.0..=100.0).contains(&update_rate) {
         100.0
     } else if update_rate < 1.0 {
         update_rate * 50.0 // Linear scale 0-1 -> 0-50
@@ -216,7 +216,7 @@ fn calculate_update_rate_score(
         0.0 // Too fast (likely quote stuffing)
     };
 
-    score.max(0.0).min(100.0)
+    score.clamp(0.0, 100.0)
 }
 
 /// Classify health score into levels
@@ -265,7 +265,7 @@ mod tests {
                 bids: vec![("100.0".to_string(), "10.0".to_string())],
                 asks: vec![("101.0".to_string(), "10.0".to_string())],
                 update_id: i,
-                timestamp: 1000 + i,
+                timestamp: 1000 + i as i64,
             })
             .collect();
 
@@ -309,7 +309,7 @@ mod tests {
                 bids: vec![("100.0".to_string(), "1.0".to_string())],
                 asks: vec![("101.0".to_string(), "1.0".to_string())],
                 update_id: i,
-                timestamp: 1000 + i,
+                timestamp: 1000 + i as i64,
             })
             .collect();
 

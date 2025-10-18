@@ -8,8 +8,8 @@ use super::{
     types::{VolumeBin, VolumeProfile},
 };
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
+use chrono::Utc;
+use rust_decimal::{Decimal, prelude::ToPrimitive};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -32,9 +32,9 @@ use std::str::FromStr;
 /// # use rust_decimal_macros::dec;
 /// # async fn example() -> anyhow::Result<()> {
 /// let profile = generate_volume_profile("BTCUSDT", 24, dec!(0.01)).await?;
-/// println!("POC: {}", profile.poc_price);
-/// println!("VAH: {}", profile.vah_price);
-/// println!("VAL: {}", profile.val_price);
+/// println!("POC: {}", profile.point_of_control);
+/// println!("VAH: {}", profile.value_area_high);
+/// println!("VAL: {}", profile.value_area_low);
 /// # Ok(())
 /// # }
 /// ```
@@ -84,9 +84,12 @@ pub async fn generate_volume_profile(
     let histogram = bin_trades_by_price(&trades, price_low, bin_size)?;
 
     // Find POC, VAH, VAL (T031)
-    let (poc_price, vah_price, val_price) = find_poc_vah_val(&histogram)?;
+    let (point_of_control, value_area_high, value_area_low) = find_poc_vah_val(&histogram)?;
 
-    let bin_count = histogram.len() as u32;
+    let bin_count = histogram.len();
+
+    // Calculate total volume
+    let total_volume: Decimal = histogram.iter().map(|b| b.volume).sum();
 
     Ok(VolumeProfile {
         symbol: symbol.to_string(),
@@ -97,9 +100,10 @@ pub async fn generate_volume_profile(
         bin_size,
         bin_count,
         histogram,
-        poc_price,
-        vah_price,
-        val_price,
+        total_volume,
+        point_of_control,
+        value_area_high,
+        value_area_low,
     })
 }
 
@@ -137,7 +141,7 @@ fn bin_trades_by_price(
     price_low: Decimal,
     bin_size: Decimal,
 ) -> Result<Vec<VolumeBin>> {
-    let mut bins: HashMap<u32, (Decimal, u32)> = HashMap::new();
+    let mut bins: HashMap<u32, (Decimal, u64)> = HashMap::new();
 
     for trade in trades {
         let price = Decimal::from_str(&trade.price)?;
@@ -149,7 +153,7 @@ fn bin_trades_by_price(
             .to_u32()
             .unwrap_or(0);
 
-        let entry = bins.entry(bin_index).or_insert((Decimal::ZERO, 0));
+        let entry = bins.entry(bin_index).or_insert((Decimal::ZERO, 0u64));
         entry.0 += quantity;
         entry.1 += 1;
     }
@@ -277,8 +281,10 @@ mod tests {
 
         let (poc, vah, val) = find_poc_vah_val(&histogram).unwrap();
 
-        assert_eq!(poc, dec!(110)); // Max volume
-        assert_eq!(val, dec!(100)); // Lower bound
+        assert_eq!(poc, dec!(110)); // Max volume at POC
+        // Algorithm expands from POC (50 volume) to high side first (20 volume)
+        // Total: 70 >= 56 (70% of 80), so VAL=POC and VAH=120
+        assert_eq!(val, dec!(110)); // Lower bound (POC itself)
         assert_eq!(vah, dec!(120)); // Upper bound
     }
 }
