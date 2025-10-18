@@ -8,8 +8,9 @@ A powerful Model Context Protocol (MCP) server that brings Binance cryptocurrenc
 
 ## ✨ Key Features
 
-- 🤖 **16 AI-Ready Tools** - Complete market data, order book depth, account info, and trading operations
+- 🤖 **21 AI-Ready Tools** - Market data, order book depth, advanced analytics, account info, and trading operations
 - 📊 **Order Book Depth Analysis** - L1 metrics, L2 depth with progressive disclosure, real-time WebSocket streams
+- 📈 **Advanced Analytics** - Volume profile (POC/VAH/VAL), order flow analysis, HFT manipulation detection, market health scoring
 - 🔄 **Dual Mode** - HTTP REST API + WebSocket OR MCP stdio protocol
 - ⚡ **Real-Time Data** - WebSocket streams for live price and depth updates (100ms)
 - 🔐 **Secure** - API keys from environment, never logged
@@ -249,6 +250,124 @@ Response: {
 }
 ```
 
+### 📈 Advanced Analytics Tools
+
+**Requires**: `orderbook_analytics` feature flag
+
+These tools provide institutional-grade market microstructure analysis for professional traders.
+
+#### `get_order_flow`
+Analyze order flow dynamics to identify buying/selling pressure and smart money activity.
+
+**Parameters**:
+- `symbol` - Trading pair (e.g., "BTCUSDT")
+- `window_duration_secs` - Analysis window in seconds (optional, default: 60)
+
+**Outputs**:
+- **Buy/Sell Volumes**: Aggressor trade volumes by side
+- **Imbalance Ratio**: 0.0 (all sells) to 1.0 (all buys)
+- **Net Pressure**: Cumulative buying minus selling pressure
+- **Trade Counts**: Market order frequency analysis
+
+**Use Cases**:
+- Detect institutional accumulation/distribution
+- Identify trend reversals via flow divergences
+- Time entries during strong directional pressure
+
+**Example**: *"Analyze order flow for BTCUSDT over last 2 minutes"*
+
+#### `get_volume_profile`
+Generate volume profile histogram to identify high-volume price nodes (support/resistance).
+
+**Parameters**:
+- `symbol` - Trading pair
+- `duration_hours` - Lookback period in hours (optional, default: 24)
+- `tick_size` - Price binning increment (e.g., "0.01" for BTCUSDT)
+
+**Outputs**:
+- **POC (Point of Control)**: Price level with maximum traded volume
+- **VAH (Value Area High)**: Upper boundary of 70% volume concentration
+- **VAL (Value Area Low)**: Lower boundary of 70% volume concentration
+- **Histogram**: Volume distribution across all price levels
+
+**Use Cases**:
+- Identify key support/resistance from volume nodes
+- Set targets at VAH/VAL boundaries
+- Fade moves outside value area for mean reversion
+
+**Example**: *"Generate 24-hour volume profile for ETHUSDT with 0.1 tick size"*
+
+#### `detect_market_anomalies`
+Detect HFT manipulation patterns and systemic risk indicators.
+
+**Parameters**:
+- `symbol` - Trading pair
+- `window_duration_secs` - Analysis window (optional, default: 60)
+
+**Detected Patterns**:
+1. **Quote Stuffing**: >500 order updates/sec with <10% fill rate (HFT latency attack)
+2. **Iceberg Orders**: Hidden institutional orders with >5x median refill frequency
+3. **Flash Crash Risk**: >80% liquidity loss + >10x spread widening + >90% cancellation rate
+
+**Outputs**:
+- Anomaly type, severity (Low/Medium/High/Critical)
+- Confidence score (0.0-1.0)
+- Actionable recommendations (delay execution, widen stops, halt trading)
+
+**Use Cases**:
+- Avoid entering during HFT manipulation windows
+- Detect hidden institutional orders (icebergs) for confluence
+- Exit positions before flash crash conditions materialize
+
+**Example**: *"Check for market anomalies in BTCUSDT"*
+
+#### `get_liquidity_vacuums`
+Identify low-liquidity price zones prone to rapid price discovery (slippage risk).
+
+**Parameters**:
+- `symbol` - Trading pair
+- `window_duration_secs` - Analysis window (optional, default: 300)
+- `threshold_percentile` - Detection sensitivity (optional, default: 25, range: 1-50)
+
+**Outputs**:
+- **Vacuum Zones**: Price ranges with abnormally low volume
+- **Severity**: Critical (avoid entirely) / High (reduce size) / Medium (use limits)
+- **Recommendations**: Stop loss placement guidance
+
+**Use Cases**:
+- Avoid placing stop losses in vacuum zones (likely to get run)
+- Anticipate rapid moves through low-liquidity areas
+- Size positions smaller when entering near vacuums
+
+**Example**: *"Find liquidity vacuums in SOLUSDT"*
+
+#### `get_microstructure_health`
+Calculate composite market health score (0-100) from four microstructure components.
+
+**Parameters**:
+- `symbol` - Trading pair
+- `window_duration_secs` - Analysis window (optional, default: 300)
+
+**Components** (weighted):
+- **Spread Stability** (25%): Bid-ask spread volatility
+- **Liquidity Depth** (35%): Orderbook thickness across levels
+- **Flow Balance** (25%): Bid/ask flow equilibrium
+- **Update Rate** (15%): Market activity level
+
+**Scoring Levels**:
+- **80-100 (Excellent)**: Safe to trade aggressively with normal position sizes
+- **60-79 (Good)**: Normal conditions, standard risk management
+- **40-59 (Fair)**: Exercise caution, tighter stops, smaller sizes
+- **20-39 (Poor)**: Reduce positions by 50%, widen stops
+- **0-19 (Critical)**: HALT new trades, exit or hedge existing positions
+
+**Use Cases**:
+- Pre-trade risk assessment before entering large positions
+- Dynamic position sizing based on market conditions
+- Early warning system for deteriorating liquidity
+
+**Example**: *"Check market health for BTCUSDT"*
+
 ### 👤 Account Tools
 
 #### `get_account_info`
@@ -439,6 +558,123 @@ Claude: [Uses portfolio_risk prompt] "Portfolio Risk Analysis:
 - Recommendations: Diversify into stable assets..."
 ```
 
+### `market_microstructure_analysis` (Advanced)
+Deep dive into market microstructure with volume profile, anomaly detection, and health scoring.
+
+**Requires**: `orderbook_analytics` feature
+
+**Parameters**:
+- `symbol` - Trading pair (e.g., "BTCUSDT")
+- `profile_hours` - Volume profile lookback period (optional, default: 24)
+
+**Provides**:
+- Volume profile analysis (POC/VAH/VAL levels)
+- Market anomaly detection (quote stuffing, icebergs, flash crash risk)
+- Microstructure health score (0-100 composite)
+- Actionable trading recommendations
+
+**Example**:
+```
+You: "Analyze BTCUSDT market microstructure"
+Claude: [Uses market_microstructure_analysis prompt] "
+# BTCUSDT Market Microstructure Analysis
+
+## Volume Profile (Last 24h)
+- POC: $67,850 (high-volume node, strong support)
+- VAH: $68,200 (70% value area upper bound)
+- VAL: $67,500 (70% value area lower bound)
+- Current price vs POC: +0.3% (trading at fair value)
+
+## Market Anomalies
+⚠️ Quote Stuffing detected (High severity)
+- Update rate: 750/sec (>500 threshold)
+- Fill rate: 8% (<10% threshold)
+- Action: Delay execution, widen spreads
+
+## Market Health: 78.5 (Good)
+- Spread stability: 85.2 (excellent)
+- Liquidity depth: 92.1 (excellent)
+- Flow balance: 68.3 (good)
+- Update rate: 72.0 (good)
+
+Recommendation: Normal trading conditions with caution around HFT activity windows."
+```
+
+### `order_flow_trading` (Advanced)
+Order flow-based trading signals with institutional pressure analysis.
+
+**Requires**: `orderbook_analytics` feature
+
+**Parameters**:
+- `symbol` - Trading pair
+- `window_minutes` - Flow analysis window in minutes (optional, default: 5)
+
+**Provides**:
+- Real-time buy/sell pressure analysis
+- Imbalance ratio and net pressure metrics
+- Smart money detection (large order flow)
+- Entry/exit signal recommendations
+
+**Example**:
+```
+You: "Get order flow signals for ETHUSDT"
+Claude: [Uses order_flow_trading prompt] "
+# ETHUSDT Order Flow Analysis (Last 5 min)
+
+## Flow Metrics
+- Buy volume: 245.3 ETH
+- Sell volume: 198.7 ETH
+- Imbalance ratio: 0.552 (moderate bullish pressure)
+- Net pressure: +46.6 ETH
+
+## Signal: LONG BIAS ✅
+- Aggressor buys dominating (55% of volume)
+- Institutional accumulation detected (3 large buy orders)
+- Recommendation: Look for entries on minor pullbacks
+- Stop loss: Below recent swing low ($3,045)
+- Target: VAH level ($3,086)"
+```
+
+### `liquidity_mapping` (Advanced)
+Comprehensive liquidity landscape with vacuum zones and wall identification.
+
+**Requires**: `orderbook_analytics` feature
+
+**Parameters**:
+- `symbol` - Trading pair
+- `lookback_minutes` - Historical analysis window (optional, default: 30)
+
+**Provides**:
+- Liquidity vacuum zones (low-volume price gaps)
+- Large order walls (bid/ask support/resistance)
+- Optimal stop loss placement zones
+- Slippage risk assessment
+
+**Example**:
+```
+You: "Map liquidity for SOLUSDT"
+Claude: [Uses liquidity_mapping prompt] "
+# SOLUSDT Liquidity Map
+
+## Liquidity Vacuums 🕳️
+1. $145.50 - $148.20 (High severity)
+   - Avg volume: 12.5 SOL (85% below median)
+   - Risk: Rapid price discovery, avoid stops here
+
+2. $142.00 - $143.50 (Medium severity)
+   - Avg volume: 34.8 SOL (55% below median)
+
+## Order Walls 🧱
+- Bid wall: $144.00 (250 SOL) - Strong support
+- Ask wall: $150.00 (310 SOL) - Resistance zone
+
+## Stop Loss Guidance
+- Safe zones: Below $143.80 or above $148.50 (outside vacuums)
+- Risky zones: $145-$148 (vacuum zone, likely to get run)
+
+Current price: $146.75 (inside vacuum - expect volatility)"
+```
+
 ## 📦 Resources Support
 
 Access live market data and account information through MCP resources:
@@ -556,11 +792,14 @@ cargo build --release
 # Add orderbook depth tools (16 tools)
 cargo build --release --features orderbook
 
+# Add advanced analytics tools (21 tools total = 16 + 5 analytics)
+cargo build --release --features orderbook_analytics
+
 # Add HTTP API + WebSocket
 cargo build --release --features http-api,websocket
 
 # All features
-cargo build --release --features orderbook,http-api,websocket
+cargo build --release --features orderbook_analytics,http-api,websocket
 ```
 
 **REST API Endpoints**: See [CLAUDE_DESKTOP_SETUP.md](CLAUDE_DESKTOP_SETUP.md) for complete API documentation.

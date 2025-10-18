@@ -20,6 +20,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-17
 - tracing 0.1.41 + tracing-subscriber 0.3.20 - Logging
 - N/A (tests use Binance Testnet API and in-memory mock servers) (004-specify-scripts-bash)
 - In-memory (BTreeMap<Decimal, Decimal> for order book state, HashMap for symbol tracking) (007-orderbook-depth-tools)
+- RocksDB embedded time-series database (1-second snapshots, 7-day retention, ~12M snapshots for 20 pairs, ~500MB-1GB with Zstd compression). Key design: `{symbol}:{unix_timestamp_sec}`, prefix scans for time-range queries. Background cleanup task deletes keys older than 7 days. (008-orderbook-advanced-analytics)
 
 ## Project Structure
 ```
@@ -59,6 +60,7 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
 - See constitution.md § Dependency Management for full policy
 
 ## Recent Changes
+- 008-orderbook-advanced-analytics: Added Rust 1.90+ (Edition 2024)
 - 2025-10-17: Completed 007-orderbook-depth-tools implementation (34/43 tasks)
   - All 3 user stories implemented: Quick Spread Assessment (L1), Detailed Depth Analysis (L2), Service Health Monitoring
   - Progressive disclosure strategy: L1 (15% token cost) → L2-lite (50%, 20 levels) → L2-full (100%, 100 levels)
@@ -66,7 +68,6 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
   - REST API fallback when data stale (>5s)
   - 20 concurrent symbol limit with GCRA rate limiting (1000 req/min)
 - 007-orderbook-depth-tools: Added Rust 1.90+ (Edition 2024)
-- 004-specify-scripts-bash: Added Rust 1.90+ (Edition 2024)
 
 ## Order Book Module Architecture (feature: orderbook)
 ### Progressive Disclosure Strategy

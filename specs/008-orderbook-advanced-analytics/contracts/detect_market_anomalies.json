@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "detect_market_anomalies",
+  "description": "Detect market microstructure anomalies: quote stuffing (>500 updates/sec, <10% fills), iceberg orders (>5x median refill rate), flash crash risk (>80% depth loss, >10x spread, >90% cancellation rate). Spec: FR-003, FR-004, FR-005.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol to monitor",
+      "pattern": "^[A-Z]{4,12}$",
+      "examples": ["BTCUSDT"]
+    },
+    "lookback_seconds": {
+      "type": "integer",
+      "description": "Time window for anomaly detection (seconds ago from now)",
+      "minimum": 10,
+      "maximum": 300,
+      "default": 60
+    }
+  },
+  "required": ["symbol"],
+  "additionalProperties": false,
+  "response": {
+    "type": "object",
+    "properties": {
+      "symbol": { "type": "string" },
+      "anomalies": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "anomaly_id": { "type": "string", "format": "uuid" },
+            "anomaly_type": {
+              "type": "string",
+              "enum": ["QuoteStuffing", "IcebergOrder", "FlashCrashRisk"]
+            },
+            "detection_timestamp": { "type": "string", "format": "date-time" },
+            "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "severity": {
+              "type": "string",
+              "enum": ["Low", "Medium", "High", "Critical"]
+            },
+            "recommended_action": { "type": "string" },
+            "metadata": {
+              "type": "object",
+              "description": "Type-specific details (update_rate, refill_rate_multiplier, depth_loss_pct, etc.)"
+            }
+          },
+          "required": ["anomaly_id", "anomaly_type", "detection_timestamp", "confidence_score", "severity", "recommended_action"]
+        }
+      }
+    },
+    "required": ["symbol", "anomalies"]
+  }
+}

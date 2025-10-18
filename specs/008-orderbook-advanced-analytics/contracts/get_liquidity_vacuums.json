@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "get_liquidity_vacuums",
+  "description": "Identify price ranges where volume <20% of median volume, indicating potential for rapid price movement through liquidity vacuums. Spec: FR-008.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol",
+      "pattern": "^[A-Z]{4,12}$",
+      "examples": ["BTCUSDT", "ETHUSDT"]
+    },
+    "time_period_hours": {
+      "type": "integer",
+      "description": "Time period for volume analysis (hours)",
+      "minimum": 1,
+      "maximum": 168,
+      "default": 24
+    }
+  },
+  "required": ["symbol"],
+  "additionalProperties": false,
+  "response": {
+    "type": "object",
+    "properties": {
+      "symbol": { "type": "string" },
+      "vacuums": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "vacuum_id": { "type": "string", "format": "uuid" },
+            "price_range_low": { "type": "string", "description": "Decimal string" },
+            "price_range_high": { "type": "string", "description": "Decimal string" },
+            "volume_deficit_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+            "median_volume": { "type": "string", "description": "Decimal string" },
+            "actual_volume": { "type": "string", "description": "Decimal string" },
+            "expected_impact": {
+              "type": "string",
+              "enum": ["FastMovement", "ModerateMovement", "Negligible"],
+              "description": "Predicted price movement speed through vacuum"
+            },
+            "detection_timestamp": { "type": "string", "format": "date-time" }
+          },
+          "required": ["vacuum_id", "price_range_low", "price_range_high", "volume_deficit_pct", "expected_impact"]
+        }
+      }
+    },
+    "required": ["symbol", "vacuums"]
+  }
+}

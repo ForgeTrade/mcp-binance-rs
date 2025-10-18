@@ -55,3 +55,56 @@ pub struct PortfolioRiskArgs {
     // Empty struct - no parameters required
     // Account info is derived from API credentials
 }
+
+/// Arguments for advanced_market_analysis prompt
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[cfg(feature = "orderbook_analytics")]
+pub struct AdvancedAnalysisArgs {
+    /// Trading pair symbol (e.g., BTCUSDT, ETHUSDT)
+    #[schemars(description = "Trading pair symbol (e.g., BTCUSDT, ETHUSDT)")]
+    pub symbol: String,
+
+    /// Analysis depth: quick (5min), standard (1h), deep (24h)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Analysis depth: quick, standard, or deep")]
+    pub analysis_depth: Option<AnalysisDepth>,
+}
+
+/// Analysis depth level for advanced market analysis
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+#[cfg(feature = "orderbook_analytics")]
+pub enum AnalysisDepth {
+    /// Quick analysis (5 minutes)
+    Quick,
+    /// Standard analysis (1 hour) - default
+    Standard,
+    /// Deep analysis (24 hours)
+    Deep,
+}
+
+/// Arguments for orderflow_snapshot prompt
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[cfg(feature = "orderbook_analytics")]
+pub struct OrderFlowSnapshotArgs {
+    /// Trading pair symbol (e.g., BTCUSDT)
+    #[schemars(description = "Trading pair symbol (e.g., BTCUSDT)")]
+    pub symbol: String,
+
+    /// Analysis window in seconds (default: 60)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Analysis window in seconds (10-300, default: 60)")]
+    pub window_secs: Option<u32>,
+}
+
+/// Arguments for market_health_check prompt
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[cfg(feature = "orderbook_analytics")]
+pub struct MarketHealthCheckArgs {
+    /// Trading pair symbol (e.g., BTCUSDT)
+    #[schemars(description = "Trading pair symbol (e.g., BTCUSDT)")]
+    pub symbol: String,
+}

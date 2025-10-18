@@ -68,13 +68,13 @@ Each phase delivers **independently testable value**. Tests are optional per spe
 
 **Tasks**:
 
-- [ ] T013 [US1] Update src/server/handler.rs to add #[prompt_handler] macro (add after #[tool_handler] line per quickstart.md)
-- [ ] T014 [US1] Implement trading_analysis prompt method in src/server/handler.rs (async fn with Parameters<TradingAnalysisArgs>)
-- [ ] T015 [US1] Add markdown formatting logic in trading_analysis handler (format ticker data per contracts/prompts.md)
-- [ ] T016 [US1] Add strategy context formatting in trading_analysis handler (append strategy/risk_tolerance if provided)
-- [ ] T017 [US1] Update ServerHandler::get_info() to include enable_prompts() capability in src/server/handler.rs
-- [ ] T018 [US1] Add ISO 8601 timestamp to prompt response using chrono in trading_analysis handler
-- [ ] T019 [US1] Handle BinanceClient API errors in trading_analysis (convert reqwest::Error to BinanceError::ApiError)
+- [X] T013 [US1] Update src/server/handler.rs to add #[prompt_handler] macro (add after #[tool_handler] line per quickstart.md)
+- [X] T014 [US1] Implement trading_analysis prompt method in src/server/handler.rs (async fn with Parameters<TradingAnalysisArgs>)
+- [X] T015 [US1] Add markdown formatting logic in trading_analysis handler (format ticker data per contracts/prompts.md)
+- [X] T016 [US1] Add strategy context formatting in trading_analysis handler (append strategy/risk_tolerance if provided)
+- [X] T017 [US1] Update ServerHandler::get_info() to include enable_prompts() capability in src/server/handler.rs
+- [X] T018 [US1] Add ISO 8601 timestamp to prompt response using chrono in trading_analysis handler
+- [X] T019 [US1] Handle BinanceClient API errors in trading_analysis (convert reqwest::Error to BinanceError::ApiError)
 
 **Acceptance Criteria**:
 - [ ] Claude Desktop lists "trading_analysis" in prompts
@@ -95,11 +95,11 @@ Each phase delivers **independently testable value**. Tests are optional per spe
 
 **Tasks**:
 
-- [ ] T020 [US2] Implement InvalidCredentials variant in From<BinanceError> for ErrorData in src/error.rs
-- [ ] T021 [US2] Implement portfolio_risk prompt method in src/server/handler.rs (async fn with Parameters<PortfolioRiskArgs>)
-- [ ] T022 [US2] Add balance table formatting in portfolio_risk handler (filter non-zero balances per quickstart.md)
-- [ ] T023 [US2] Add "No holdings" case handling in portfolio_risk handler (empty balance list edge case)
-- [ ] T024 [US2] Add ISO 8601 timestamp to portfolio_risk response using chrono
+- [X] T020 [US2] Implement InvalidCredentials variant in From<BinanceError> for ErrorData in src/error.rs
+- [X] T021 [US2] Implement portfolio_risk prompt method in src/server/handler.rs (async fn with Parameters<PortfolioRiskArgs>)
+- [X] T022 [US2] Add balance table formatting in portfolio_risk handler (filter non-zero balances per quickstart.md)
+- [X] T023 [US2] Add "No holdings" case handling in portfolio_risk handler (empty balance list edge case)
+- [X] T024 [US2] Add ISO 8601 timestamp to portfolio_risk response using chrono
 
 **Acceptance Criteria**:
 - [ ] Claude Desktop lists "portfolio_risk" in prompts
@@ -121,16 +121,16 @@ Each phase delivers **independently testable value**. Tests are optional per spe
 
 **Tasks**:
 
-- [ ] T025 [P] [US3] Implement ResourceCategory enum in src/server/resources.rs (Market/Account/Orders variants)
-- [ ] T026 [P] [US3] Implement ResourceUri struct in src/server/resources.rs (scheme, category, identifier fields)
-- [ ] T027 [US3] Implement ResourceUri::parse() method in src/server/resources.rs (parse `binance://{category}/{identifier}`)
-- [ ] T028 [US3] Implement list_resources() method in src/server/handler.rs (return vec with market/btcusdt and market/ethusdt)
-- [ ] T029 [US3] Implement read_resource() method skeleton in src/server/handler.rs (parse URI and dispatch to handlers)
-- [ ] T030 [US3] Implement read_market_resource() helper in src/server/handler.rs (fetch ticker, format as markdown)
-- [ ] T031 [US3] Add symbol case normalization in read_market_resource (lowercase URI → uppercase API call)
-- [ ] T032 [US3] Add ResourceNotFound error handling in read_resource (invalid URI returns -32404 error)
-- [ ] T033 [US3] Update ServerHandler::get_info() to include enable_resources() capability in src/server/handler.rs
-- [ ] T034 [US3] Add ISO 8601 timestamp to resource content using chrono
+- [X] T025 [P] [US3] Implement ResourceCategory enum in src/server/resources.rs (Market/Account/Orders variants)
+- [X] T026 [P] [US3] Implement ResourceUri struct in src/server/resources.rs (scheme, category, identifier fields)
+- [X] T027 [US3] Implement ResourceUri::parse() method in src/server/resources.rs (parse `binance://{category}/{identifier}`)
+- [X] T028 [US3] Implement list_resources() method in src/server/handler.rs (return vec with market/btcusdt and market/ethusdt)
+- [X] T029 [US3] Implement read_resource() method skeleton in src/server/handler.rs (parse URI and dispatch to handlers)
+- [X] T030 [US3] Implement read_market_resource() helper in src/server/handler.rs (fetch ticker, format as markdown)
+- [X] T031 [US3] Add symbol case normalization in read_market_resource (lowercase URI → uppercase API call)
+- [X] T032 [US3] Add ResourceNotFound error handling in read_resource (invalid URI returns -32404 error)
+- [X] T033 [US3] Update ServerHandler::get_info() to include enable_resources() capability in src/server/handler.rs
+- [X] T034 [US3] Add ISO 8601 timestamp to resource content using chrono
 
 **Acceptance Criteria**:
 - [ ] Claude Desktop lists at least 2 resources (binance://market/btcusdt, binance://market/ethusdt)
@@ -154,12 +154,12 @@ Each phase delivers **independently testable value**. Tests are optional per spe
 
 **Tasks**:
 
-- [ ] T035 [US4] Add account/balances and orders/open to list_resources() in src/server/handler.rs
-- [ ] T036 [P] [US4] Implement read_account_resource() helper in src/server/handler.rs (handle "balances" identifier)
-- [ ] T037 [P] [US4] Implement read_orders_resource() helper in src/server/handler.rs (handle "open" identifier)
-- [ ] T038 [US4] Add balance table markdown formatting in read_account_resource (per contracts/resources.md)
-- [ ] T039 [US4] Add orders table markdown formatting in read_orders_resource (per contracts/resources.md)
-- [ ] T040 [US4] Add "No open orders" case handling in read_orders_resource (empty orders list edge case)
+- [X] T035 [US4] Add account/balances and orders/open to list_resources() in src/server/handler.rs
+- [X] T036 [P] [US4] Implement read_account_resource() helper in src/server/handler.rs (handle "balances" identifier)
+- [X] T037 [P] [US4] Implement read_orders_resource() helper in src/server/handler.rs (handle "open" identifier)
+- [X] T038 [US4] Add balance table markdown formatting in read_account_resource (per contracts/resources.md)
+- [X] T039 [US4] Add orders table markdown formatting in read_orders_resource (per contracts/resources.md)
+- [X] T040 [US4] Add "No open orders" case handling in read_orders_resource (empty orders list edge case)
 
 **Acceptance Criteria**:
 - [ ] Claude Desktop lists at least 4 total resources (2 market + 2 account)
@@ -183,13 +183,13 @@ Each phase delivers **independently testable value**. Tests are optional per spe
 
 **Tasks**:
 
-- [ ] T041 [P] [US5] Implement InvalidSymbol variant in From<BinanceError> for ErrorData in src/error.rs
-- [ ] T042 [P] [US5] Implement InsufficientBalance variant in From<BinanceError> for ErrorData in src/error.rs
-- [ ] T043 [US5] Update RateLimited error conversion to include recovery_suggestion in error data JSON in src/error.rs
-- [ ] T044 [US5] Update InvalidCredentials error conversion to include help_url and recovery steps in src/error.rs
-- [ ] T045 [US5] Update InvalidSymbol error conversion to include valid_examples and format_help in src/error.rs
-- [ ] T046 [US5] Update InsufficientBalance error conversion to include required/available amounts in src/error.rs
-- [ ] T047 [US5] Test error message sanitization (verify no full API keys, stack traces, or sensitive data exposed)
+- [X] T041 [P] [US5] Implement InvalidSymbol variant in From<BinanceError> for ErrorData in src/error.rs
+- [X] T042 [P] [US5] Implement InsufficientBalance variant in From<BinanceError> for ErrorData in src/error.rs
+- [X] T043 [US5] Update RateLimited error conversion to include recovery_suggestion in error data JSON in src/error.rs
+- [X] T044 [US5] Update InvalidCredentials error conversion to include help_url and recovery steps in src/error.rs
+- [X] T045 [US5] Update InvalidSymbol error conversion to include valid_examples and format_help in src/error.rs
+- [X] T046 [US5] Update InsufficientBalance error conversion to include required/available amounts in src/error.rs
+- [X] T047 [US5] Test error message sanitization (verify no full API keys, stack traces, or sensitive data exposed)
 
 **Acceptance Criteria**:
 - [ ] Rate limit error (HTTP 429) returns error code -32001 with retry_after_secs

@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "get_microstructure_health",
+  "description": "Calculate microstructure health score (0-100): composite metric combining spread stability, liquidity depth, order flow balance, and update rate normality. Spec: FR-010.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol",
+      "pattern": "^[A-Z]{4,12}$",
+      "examples": ["BTCUSDT", "ETHUSDT"]
+    }
+  },
+  "required": ["symbol"],
+  "additionalProperties": false,
+  "response": {
+    "type": "object",
+    "properties": {
+      "symbol": { "type": "string" },
+      "health_score": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Composite health score (0 = unhealthy, 100 = optimal)"
+      },
+      "components": {
+        "type": "object",
+        "properties": {
+          "spread_stability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Spread variance vs 24h average (low variance = high score)"
+          },
+          "liquidity_depth": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Orderbook depth vs rolling median (deep book = high score)"
+          },
+          "order_flow_balance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Bid/ask flow equilibrium (balanced = high score)"
+          },
+          "update_rate_normality": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Update rate within normal range (stable = high score)"
+          }
+        },
+        "required": ["spread_stability", "liquidity_depth", "order_flow_balance", "update_rate_normality"]
+      },
+      "timestamp": { "type": "string", "format": "date-time" },
+      "prediction": {
+        "type": "object",
+        "description": "Predictive correlation with 5-min volatility (SC-006: >0.7 target)",
+        "properties": {
+          "expected_volatility_next_5min": { "type": "number", "minimum": 0 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "required": ["symbol", "health_score", "components", "timestamp"]
+  }
+}
