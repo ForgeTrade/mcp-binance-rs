@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "get_volume_profile",
+  "description": "Generate volume profile histogram showing volume distribution across price levels with Point of Control (POC), Value Area High (VAH), and Value Area Low (VAL). Uses adaptive tick-based binning. Spec: FR-002, FR-008.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol",
+      "pattern": "^[A-Z]{4,12}$",
+      "examples": ["BTCUSDT", "ETHUSDT"]
+    },
+    "time_period_hours": {
+      "type": "integer",
+      "description": "Time period for volume aggregation (hours ago from now). Common: 1, 4, 24",
+      "minimum": 1,
+      "maximum": 168,
+      "default": 24
+    }
+  },
+  "required": ["symbol"],
+  "additionalProperties": false,
+  "response": {
+    "type": "object",
+    "properties": {
+      "symbol": { "type": "string" },
+      "time_period_start": { "type": "string", "format": "date-time" },
+      "time_period_end": { "type": "string", "format": "date-time" },
+      "price_range_low": { "type": "string", "description": "Decimal string (lowest price)" },
+      "price_range_high": { "type": "string", "description": "Decimal string (highest price)" },
+      "bin_size": { "type": "string", "description": "Decimal string (adaptive tick-based bin width)" },
+      "bin_count": { "type": "integer", "minimum": 1 },
+      "histogram": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "price_level": { "type": "string", "description": "Decimal string" },
+            "volume": { "type": "string", "description": "Decimal string" },
+            "trade_count": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["price_level", "volume", "trade_count"]
+        }
+      },
+      "total_volume": { "type": "string", "description": "Decimal string (sum of all bins)" },
+      "point_of_control": { "type": "string", "description": "Decimal string (price with highest volume)" },
+      "value_area_high": { "type": "string", "description": "Decimal string (upper 70% volume boundary)" },
+      "value_area_low": { "type": "string", "description": "Decimal string (lower 70% volume boundary)" }
+    },
+    "required": ["symbol", "histogram", "total_volume", "point_of_control", "value_area_high", "value_area_low"]
+  }
+}
