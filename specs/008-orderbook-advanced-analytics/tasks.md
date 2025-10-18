@@ -98,14 +98,14 @@ Tasks are organized by **user story** to enable independent implementation and t
 
 ### Tasks
 
-- [ ] T033 [P] [US3] Add MarketMicrostructureAnomaly struct to `src/orderbook/analytics/types.rs` (anomaly_id, type, timestamp, confidence, severity, recommended_action)
-- [ ] T034 [P] [US3] Add AnomalyType enum to `src/orderbook/analytics/types.rs` (QuoteStuffing, IcebergOrder, FlashCrashRisk with type-specific metadata)
-- [ ] T035 [P] [US3] Add AbsorptionEvent struct to `src/orderbook/analytics/types.rs` (event_id, price_level, absorbed_volume, refill_count, direction)
-- [ ] T036 [US3] Create `src/orderbook/analytics/anomaly.rs` with `detect_anomalies()` async function
-- [ ] T037 [US3] Implement detect_quote_stuffing() in `anomaly.rs` checking update_rate >500/sec and fill_rate <10% (FR-003)
-- [ ] T038 [US3] Implement detect_iceberg_orders() in `anomaly.rs` tracking refill_rate >5x median (FR-004)
-- [ ] T039 [US3] Implement detect_flash_crash_risk() in `anomaly.rs` checking depth_loss >80%, spread >10x, cancellation_rate >90% (FR-005)
-- [ ] T040 [US3] Create `detect_market_anomalies` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/detect_market_anomalies.json schema
+- [X] T033 [P] [US3] Add MarketMicrostructureAnomaly struct to `src/orderbook/analytics/types.rs` (anomaly_id, type, timestamp, confidence, severity, recommended_action)
+- [X] T034 [P] [US3] Add AnomalyType enum to `src/orderbook/analytics/types.rs` (QuoteStuffing, IcebergOrder, FlashCrashRisk with type-specific metadata)
+- [X] T035 [P] [US3] Add AbsorptionEvent struct to `src/orderbook/analytics/types.rs` (event_id, price_level, absorbed_volume, refill_count, direction)
+- [X] T036 [US3] Create `src/orderbook/analytics/anomaly.rs` with `detect_anomalies()` async function
+- [X] T037 [US3] Implement detect_quote_stuffing() in `anomaly.rs` checking update_rate >500/sec and fill_rate <10% (FR-003)
+- [X] T038 [US3] Implement detect_iceberg_orders() in `anomaly.rs` tracking refill_rate >5x median (FR-004)
+- [X] T039 [US3] Implement detect_flash_crash_risk() in `anomaly.rs` checking depth_loss >80%, spread >10x, cancellation_rate >90% (FR-005)
+- [X] T040 [US3] Create `detect_market_anomalies` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/detect_market_anomalies.json schema
 
 ---
 
@@ -115,8 +115,8 @@ Tasks are organized by **user story** to enable independent implementation and t
 
 ### Tasks
 
-- [ ] T041 Create `get_liquidity_vacuums` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_liquidity_vacuums.json (FR-008, identifies price ranges with <20% median volume)
-- [ ] T042 Create `get_microstructure_health` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_microstructure_health.json (FR-010, composite 0-100 score combining spread stability, liquidity depth, flow balance, update rate)
+- [X] T041 Create `get_liquidity_vacuums` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_liquidity_vacuums.json (FR-008, identifies price ranges with <20% median volume)
+- [X] T042 Create `get_microstructure_health` MCP tool in `src/orderbook/analytics/tools.rs` implementing contracts/get_microstructure_health.json (FR-010, composite 0-100 score combining spread stability, liquidity depth, flow balance, update rate)
 
 ---
 
@@ -228,15 +228,15 @@ graph TD
 
 After completing all tasks, verify:
 
-- [ ] All 42 tasks marked complete
-- [ ] All task IDs sequential (T001-T042)
-- [ ] All user story tasks have [US1], [US2], or [US3] labels
-- [ ] Parallelizable tasks marked with [P]
-- [ ] All file paths are explicit (no "implement feature X")
-- [ ] Setup/Foundation have NO story labels
-- [ ] Each user story independently testable (can ship US1 without US2/US3)
-- [ ] Dependency graph shows critical path: Setup → Foundation → US1
-- [ ] MVP scope clearly defined (US1 + liquidity vacuums = 23 tasks)
+- [X] All 42 tasks marked complete
+- [X] All task IDs sequential (T001-T042)
+- [X] All user story tasks have [US1], [US2], or [US3] labels
+- [X] Parallelizable tasks marked with [P]
+- [X] All file paths are explicit (no "implement feature X")
+- [X] Setup/Foundation have NO story labels
+- [X] Each user story independently testable (can ship US1 without US2/US3)
+- [X] Dependency graph shows critical path: Setup → Foundation → US1
+- [X] MVP scope clearly defined (US1 + liquidity vacuums = 23 tasks)
 
 ---
 
