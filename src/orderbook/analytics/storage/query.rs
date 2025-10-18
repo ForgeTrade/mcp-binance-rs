@@ -82,7 +82,8 @@ pub async fn count_updates_in_window(
     start_timestamp_sec: i64,
     end_timestamp_sec: i64,
 ) -> Result<(usize, usize)> {
-    let snapshots = query_snapshots_in_window(storage, symbol, start_timestamp_sec, end_timestamp_sec).await?;
+    let snapshots =
+        query_snapshots_in_window(storage, symbol, start_timestamp_sec, end_timestamp_sec).await?;
 
     if snapshots.is_empty() {
         return Ok((0, 0));

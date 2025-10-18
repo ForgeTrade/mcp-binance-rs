@@ -7,13 +7,13 @@
 //! - **Compression**: Zstd for ~500MB-1GB storage (12M snapshots for 20 pairs)
 //! - **Query pattern**: Prefix scan for time-range queries (<200ms target)
 
-pub mod snapshot;
 pub mod query;
+pub mod snapshot;
 
+use anyhow::{Context, Result};
 use rocksdb::{DB, Options, WriteBatch};
 use std::path::Path;
 use std::sync::Arc;
-use anyhow::{Context, Result};
 
 /// RocksDB storage handle for orderbook snapshots
 #[derive(Clone)]
@@ -42,12 +42,9 @@ impl SnapshotStorage {
         // Prefix bloom filter for symbol-based scans
         opts.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(10));
 
-        let db = DB::open(&opts, path)
-            .context("Failed to open RocksDB for snapshot storage")?;
+        let db = DB::open(&opts, path).context("Failed to open RocksDB for snapshot storage")?;
 
-        Ok(Self {
-            db: Arc::new(db),
-        })
+        Ok(Self { db: Arc::new(db) })
     }
 
     /// Store a snapshot with key format `{symbol}:{unix_timestamp_sec}`
@@ -162,7 +159,9 @@ mod tests {
 
         // Insert recent snapshot (1 day ago)
         let recent_timestamp = chrono::Utc::now().timestamp() - (1 * 24 * 3600);
-        storage.put("ETHUSDT", recent_timestamp, b"recent_data").await?;
+        storage
+            .put("ETHUSDT", recent_timestamp, b"recent_data")
+            .await?;
 
         // Cleanup with 7-day retention
         let deleted = storage.cleanup_old_snapshots(7 * 24 * 3600).await?;

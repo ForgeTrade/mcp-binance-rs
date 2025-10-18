@@ -7,7 +7,7 @@
 //! - Update rate (moderate activity = healthy)
 
 use super::{
-    storage::{query::query_snapshots_in_window, SnapshotStorage},
+    storage::{SnapshotStorage, query::query_snapshots_in_window},
     types::MicrostructureHealth,
 };
 use anyhow::{Context, Result};
@@ -51,10 +51,9 @@ pub async fn calculate_health_score(
     let start = end - chrono::Duration::seconds(window_duration_secs as i64);
 
     // Query snapshots
-    let snapshots =
-        query_snapshots_in_window(storage, symbol, start.timestamp(), end.timestamp())
-            .await
-            .context("Failed to query snapshots for health score")?;
+    let snapshots = query_snapshots_in_window(storage, symbol, start.timestamp(), end.timestamp())
+        .await
+        .context("Failed to query snapshots for health score")?;
 
     if snapshots.is_empty() {
         // Return critical health if no data
@@ -161,9 +160,7 @@ fn calculate_liquidity_depth_score(
 /// Calculate flow balance score (0-100)
 ///
 /// Measures bid/ask flow equilibrium. Neutral flow (ratio ≈ 1.0) = higher score.
-fn calculate_flow_balance_score(
-    snapshots: &[super::storage::snapshot::OrderBookSnapshot],
-) -> f64 {
+fn calculate_flow_balance_score(snapshots: &[super::storage::snapshot::OrderBookSnapshot]) -> f64 {
     if snapshots.is_empty() {
         return 50.0; // Neutral
     }
@@ -227,7 +224,8 @@ fn classify_health(score: f64) -> (String, String) {
     if score >= 80.0 {
         (
             "Excellent".to_string(),
-            "Market conditions are optimal. Safe to trade aggressively with normal position sizes.".to_string(),
+            "Market conditions are optimal. Safe to trade aggressively with normal position sizes."
+                .to_string(),
         )
     } else if score >= 60.0 {
         (
@@ -242,20 +240,22 @@ fn classify_health(score: f64) -> (String, String) {
     } else if score >= 20.0 {
         (
             "Poor".to_string(),
-            "Market conditions deteriorating. Reduce position sizes by 50% and widen stops.".to_string(),
+            "Market conditions deteriorating. Reduce position sizes by 50% and widen stops."
+                .to_string(),
         )
     } else {
         (
             "Critical".to_string(),
-            "SEVERE RISK. Halt new trades immediately. Exit positions or hedge exposures.".to_string(),
+            "SEVERE RISK. Halt new trades immediately. Exit positions or hedge exposures."
+                .to_string(),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::storage::snapshot::OrderBookSnapshot;
+    use super::*;
 
     #[test]
     fn test_calculate_spread_stability_score() {

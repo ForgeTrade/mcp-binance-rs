@@ -4,10 +4,10 @@
 //! with exponential backoff reconnection (1s, 2s, 4s, 8s, max 60s).
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use tokio::time::{sleep, Duration};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::StreamExt;
+use serde::{Deserialize, Serialize};
+use tokio::time::{Duration, sleep};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 /// Aggregate trade event from Binance @aggTrade stream
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,7 +74,10 @@ pub struct AggTrade {
 /// ```
 pub async fn connect_trade_stream(
     symbol: &str,
-) -> Result<(tokio::sync::mpsc::Receiver<AggTrade>, tokio::task::JoinHandle<()>)> {
+) -> Result<(
+    tokio::sync::mpsc::Receiver<AggTrade>,
+    tokio::task::JoinHandle<()>,
+)> {
     let symbol_lower = symbol.to_lowercase();
     let url = format!("wss://stream.binance.com:9443/ws/{}@aggTrade", symbol_lower);
 
@@ -91,7 +94,11 @@ pub async fn connect_trade_stream(
                     retry_delay = Duration::from_secs(1); // Reset on clean disconnect
                 }
                 Err(e) => {
-                    tracing::error!("@aggTrade stream error: {}, retrying in {:?}", e, retry_delay);
+                    tracing::error!(
+                        "@aggTrade stream error: {}, retrying in {:?}",
+                        e,
+                        retry_delay
+                    );
                 }
             }
 
@@ -106,10 +113,7 @@ pub async fn connect_trade_stream(
 }
 
 /// Internal: Connect and stream trades until error or disconnect
-async fn connect_and_stream(
-    url: &str,
-    tx: tokio::sync::mpsc::Sender<AggTrade>,
-) -> Result<()> {
+async fn connect_and_stream(url: &str, tx: tokio::sync::mpsc::Sender<AggTrade>) -> Result<()> {
     let (ws_stream, _) = connect_async(url)
         .await
         .context("Failed to connect to @aggTrade WebSocket")?;

@@ -6,7 +6,7 @@
 //! - Flash crash risk: >80% depth loss + >10x spread + >90% cancellation rate
 
 use super::{
-    storage::{query::query_snapshots_in_window, SnapshotStorage},
+    storage::{SnapshotStorage, query::query_snapshots_in_window},
     types::{AnomalyType, MarketMicrostructureAnomaly, Severity},
 };
 use anyhow::{Context, Result};
@@ -54,10 +54,9 @@ pub async fn detect_anomalies(
     let start = end - chrono::Duration::seconds(window_duration_secs as i64);
 
     // Query snapshots for analysis window
-    let snapshots =
-        query_snapshots_in_window(storage, symbol, start.timestamp(), end.timestamp())
-            .await
-            .context("Failed to query snapshots for anomaly detection")?;
+    let snapshots = query_snapshots_in_window(storage, symbol, start.timestamp(), end.timestamp())
+        .await
+        .context("Failed to query snapshots for anomaly detection")?;
 
     if snapshots.is_empty() {
         return Ok(Vec::new());
@@ -135,7 +134,8 @@ fn detect_quote_stuffing(
         severity,
         recommended_action: format!(
             "Potential HFT manipulation detected. Update rate: {:.0}/sec (>500 threshold), Fill rate: {:.1}% (<10% threshold). Consider delaying execution or widening spreads.",
-            update_rate, fill_rate * 100.0
+            update_rate,
+            fill_rate * 100.0
         ),
     })
 }
@@ -269,7 +269,9 @@ fn detect_flash_crash_risk(
         severity,
         recommended_action: format!(
             "CRITICAL: Flash crash risk detected! Depth loss: {:.1}% (>80%), Spread: {:.1}x baseline (>10x), Cancellations: {:.1}% (>90%). HALT TRADING IMMEDIATELY. Wait for market stabilization.",
-            depth_loss_pct, spread_multiplier, cancellation_rate * 100.0
+            depth_loss_pct,
+            spread_multiplier,
+            cancellation_rate * 100.0
         ),
     })
 }
@@ -288,8 +290,8 @@ fn calculate_spread(bids: &[(String, String)], asks: &[(String, String)]) -> f64
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::storage::snapshot::OrderBookSnapshot;
+    use super::*;
 
     #[test]
     fn test_detect_quote_stuffing() {
@@ -307,8 +309,14 @@ mod tests {
         assert!(anomaly.is_some());
 
         let anomaly = anomaly.unwrap();
-        assert!(matches!(anomaly.anomaly_type, AnomalyType::QuoteStuffing { .. }));
-        assert!(matches!(anomaly.severity, Severity::High | Severity::Critical));
+        assert!(matches!(
+            anomaly.anomaly_type,
+            AnomalyType::QuoteStuffing { .. }
+        ));
+        assert!(matches!(
+            anomaly.severity,
+            Severity::High | Severity::Critical
+        ));
     }
 
     #[test]
@@ -347,7 +355,10 @@ mod tests {
         assert!(anomaly.is_some());
 
         let anomaly = anomaly.unwrap();
-        assert!(matches!(anomaly.anomaly_type, AnomalyType::FlashCrashRisk { .. }));
+        assert!(matches!(
+            anomaly.anomaly_type,
+            AnomalyType::FlashCrashRisk { .. }
+        ));
         assert_eq!(anomaly.severity, Severity::Critical);
     }
 

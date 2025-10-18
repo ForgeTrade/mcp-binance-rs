@@ -9,11 +9,14 @@ use super::{
     health::calculate_health_score,
     profile::generate_volume_profile,
     storage::SnapshotStorage,
-    types::{LiquidityVacuum, MarketMicrostructureAnomaly, MicrostructureHealth, OrderFlowSnapshot, VolumeProfile},
+    types::{
+        LiquidityVacuum, MarketMicrostructureAnomaly, MicrostructureHealth, OrderFlowSnapshot,
+        VolumeProfile,
+    },
 };
-use rust_decimal::Decimal;
 use anyhow::{Context, Result};
 use rmcp::tool;
+use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -60,14 +63,12 @@ fn default_window_duration() -> u32 {
     description = "Analyze order flow direction and bid/ask pressure over time window. Returns flow rates, net flow, direction classification, and cumulative delta."
 )]
 pub async fn get_order_flow(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")]
-    symbol: String,
+    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
 
     #[tool(description = "Analysis window duration in seconds (default: 60)")]
     window_duration_secs: Option<u32>,
 
-    #[tool(shared_state)]
-    storage: Arc<SnapshotStorage>,
+    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
 ) -> Result<OrderFlowSnapshot> {
     let window_duration = window_duration_secs.unwrap_or(60);
 
@@ -104,18 +105,14 @@ pub async fn get_order_flow(
     description = "Generate volume profile histogram showing volume distribution across price levels. Returns POC (Point of Control), VAH/VAL (Value Area High/Low) for support/resistance identification."
 )]
 pub async fn get_volume_profile(
-    #[tool(description = "Trading pair symbol (e.g., ETHUSDT)")]
-    symbol: String,
+    #[tool(description = "Trading pair symbol (e.g., ETHUSDT)")] symbol: String,
 
-    #[tool(description = "Analysis period in hours (default: 24)")]
-    duration_hours: Option<u32>,
+    #[tool(description = "Analysis period in hours (default: 24)")] duration_hours: Option<u32>,
 
-    #[tool(description = "Price tick size for binning (e.g., 0.01)")]
-    tick_size: String,
+    #[tool(description = "Price tick size for binning (e.g., 0.01)")] tick_size: String,
 ) -> Result<VolumeProfile> {
     let duration = duration_hours.unwrap_or(24);
-    let tick = Decimal::from_str_exact(&tick_size)
-        .context("Invalid tick_size format")?;
+    let tick = Decimal::from_str_exact(&tick_size).context("Invalid tick_size format")?;
 
     generate_volume_profile(&symbol, duration, tick)
         .await
@@ -153,14 +150,12 @@ pub async fn get_volume_profile(
     description = "Detect market microstructure anomalies including quote stuffing (HFT manipulation), iceberg orders (hidden institutional orders), and flash crash risk (extreme liquidity deterioration). Returns anomalies with severity levels and recommended actions."
 )]
 pub async fn detect_market_anomalies(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")]
-    symbol: String,
+    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
 
     #[tool(description = "Analysis window duration in seconds (default: 60)")]
     window_duration_secs: Option<u32>,
 
-    #[tool(shared_state)]
-    storage: Arc<SnapshotStorage>,
+    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
 ) -> Result<Vec<MarketMicrostructureAnomaly>> {
     let window_duration = window_duration_secs.unwrap_or(60);
 
@@ -196,18 +191,14 @@ pub async fn detect_market_anomalies(
     description = "Identify liquidity vacuums - price ranges with abnormally low volume (<20% median). These zones are prone to fast price movements when crossed. Returns vacuum locations with expected impact levels."
 )]
 pub async fn get_liquidity_vacuums(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")]
-    symbol: String,
+    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
 
-    #[tool(description = "Analysis period in hours (default: 24)")]
-    duration_hours: Option<u32>,
+    #[tool(description = "Analysis period in hours (default: 24)")] duration_hours: Option<u32>,
 
-    #[tool(description = "Price tick size for binning (e.g., 0.01)")]
-    tick_size: String,
+    #[tool(description = "Price tick size for binning (e.g., 0.01)")] tick_size: String,
 ) -> Result<Vec<LiquidityVacuum>> {
     let duration = duration_hours.unwrap_or(24);
-    let tick = Decimal::from_str_exact(&tick_size)
-        .context("Invalid tick_size format")?;
+    let tick = Decimal::from_str_exact(&tick_size).context("Invalid tick_size format")?;
 
     // Generate volume profile first
     let profile = generate_volume_profile(&symbol, duration, tick)
@@ -306,14 +297,12 @@ pub async fn get_liquidity_vacuums(
     description = "Calculate market microstructure health score (0-100) combining spread stability, liquidity depth, flow balance, and update rate. Returns overall score, component breakdown, health level, and recommended actions."
 )]
 pub async fn get_microstructure_health(
-    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")]
-    symbol: String,
+    #[tool(description = "Trading pair symbol (e.g., BTCUSDT)")] symbol: String,
 
     #[tool(description = "Analysis window duration in seconds (default: 300)")]
     window_duration_secs: Option<u32>,
 
-    #[tool(shared_state)]
-    storage: Arc<SnapshotStorage>,
+    #[tool(shared_state)] storage: Arc<SnapshotStorage>,
 ) -> Result<MicrostructureHealth> {
     let window_duration = window_duration_secs.unwrap_or(300);
 

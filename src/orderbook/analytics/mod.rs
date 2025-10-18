@@ -24,13 +24,13 @@ pub mod types;
 pub use types::*;
 
 // Core analytics modules
-pub mod storage;
-pub mod flow;
-pub mod profile;
 pub mod anomaly;
+pub mod flow;
 pub mod health;
-pub mod trade_stream;
+pub mod profile;
+pub mod storage;
 pub mod tools;
+pub mod trade_stream;
 
 /// Module version aligned with spec 008-orderbook-advanced-analytics
 pub const VERSION: &str = "0.1.0";

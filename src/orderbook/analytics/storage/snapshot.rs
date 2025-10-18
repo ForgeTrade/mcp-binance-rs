@@ -5,9 +5,9 @@
 
 use super::SnapshotStorage;
 use crate::orderbook::types::OrderBook;
+use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use anyhow::{Context, Result};
 
 /// Simplified orderbook snapshot for storage (top 20 levels per side)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +88,9 @@ pub async fn capture_snapshot_task(
         let timestamp_sec = snapshot.timestamp;
         let bytes = snapshot.to_bytes()?;
 
-        storage.put(&symbol, timestamp_sec, &bytes).await
+        storage
+            .put(&symbol, timestamp_sec, &bytes)
+            .await
             .context("Failed to store snapshot")?;
 
         tracing::debug!(

@@ -4,14 +4,14 @@
 //! VAH (Value Area High), VAL (Value Area Low) for support/resistance identification.
 
 use super::{
-    trade_stream::{connect_trade_stream, AggTrade},
+    trade_stream::{AggTrade, connect_trade_stream},
     types::{VolumeBin, VolumeProfile},
 };
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-use std::str::FromStr;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 /// Generate volume profile for a symbol over time period (T028, FR-007)
 ///
@@ -109,8 +109,7 @@ fn find_price_range(trades: &[AggTrade]) -> Result<(Decimal, Decimal)> {
     let mut max_price = Decimal::MIN;
 
     for trade in trades {
-        let price = Decimal::from_str(&trade.price)
-            .context("Failed to parse trade price")?;
+        let price = Decimal::from_str(&trade.price).context("Failed to parse trade price")?;
         min_price = min_price.min(price);
         max_price = max_price.max(price);
     }
@@ -145,7 +144,10 @@ fn bin_trades_by_price(
         let quantity = Decimal::from_str(&trade.quantity)?;
 
         // Calculate bin index
-        let bin_index = ((price - price_low) / bin_size).floor().to_u32().unwrap_or(0);
+        let bin_index = ((price - price_low) / bin_size)
+            .floor()
+            .to_u32()
+            .unwrap_or(0);
 
         let entry = bins.entry(bin_index).or_insert((Decimal::ZERO, 0));
         entry.0 += quantity;

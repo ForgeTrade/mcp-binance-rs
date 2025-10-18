@@ -114,13 +114,13 @@
 
 **Purpose**: Improvements that affect multiple user stories and operational readiness
 
-- [ ] T035 [P] Add integration test for WebSocket reconnection in `tests/integration/orderbook_websocket.rs` (simulate disconnect, verify exponential backoff, confirm reconnect within 30s)
-- [ ] T036 [P] Add integration test for rate limiter in `tests/integration/orderbook_rate_limit.rs` (send 1100 requests, verify queue behavior, confirm no 418/429 errors)
-- [ ] T037 [P] Add integration test for metrics calculations in `tests/integration/orderbook_metrics.rs` (verify spread accuracy within 0.01 bps, microprice within $0.01, slippage within 5%)
-- [ ] T038 [P] Add unit tests for OrderBook type in `tests/unit/orderbook_types.rs` (test serialization, compact integer encoding/decoding)
-- [ ] T039 [P] Add unit tests for OrderBookManager in `tests/unit/orderbook_manager.rs` (test symbol limit enforcement, lazy initialization, cache staleness)
-- [ ] T040 Add performance validation (measure L1 metrics latency, verify P95 ≤200ms when warm, L2 depth ≤300ms)
-- [ ] T041 Add quickstart.md validation (manually execute all scenarios from quickstart.md, verify outputs match examples)
+- [X] T035 [P] Add integration test for WebSocket reconnection in `tests/integration/orderbook_websocket.rs` (simulate disconnect, verify exponential backoff, confirm reconnect within 30s)
+- [X] T036 [P] Add integration test for rate limiter in `tests/integration/orderbook_rate_limit.rs` (send 1100 requests, verify queue behavior, confirm no 418/429 errors)
+- [X] T037 [P] Add integration test for metrics calculations in `tests/integration/orderbook_metrics.rs` (verify spread accuracy within 0.01 bps, microprice within $0.01, slippage within 5%)
+- [X] T038 [P] Add unit tests for OrderBook type in `tests/unit/orderbook_types.rs` (test serialization, compact integer encoding/decoding)
+- [X] T039 [P] Add unit tests for OrderBookManager in `tests/unit/orderbook_manager.rs` (test symbol limit enforcement, lazy initialization, cache staleness)
+- [X] T040 Add performance validation (measure L1 metrics latency, verify P95 ≤200ms when warm, L2 depth ≤300ms)
+- [X] T041 Add quickstart.md validation (manually execute all scenarios from quickstart.md, verify outputs match examples)
 - [X] T042 [P] Update CLAUDE.md via update-agent-context.sh script with orderbook module details
 - [X] T043 Code cleanup and refactoring (remove debug prints, optimize BTreeMap operations)
 

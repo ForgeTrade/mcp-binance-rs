@@ -4,7 +4,7 @@
 //! Target window: 60 seconds (60 snapshots at 1/sec capture rate).
 
 use super::{
-    storage::{query::query_snapshots_in_window, SnapshotStorage},
+    storage::{SnapshotStorage, query::query_snapshots_in_window},
     types::{FlowDirection, OrderFlowSnapshot},
 };
 use anyhow::{Context, Result};
@@ -101,7 +101,9 @@ pub async fn calculate_order_flow(
 /// - New orders (level additions)
 /// - Cancellations (level removals)
 /// - Quantity changes (level modifications)
-fn aggregate_bid_ask_counts(snapshots: &[super::storage::snapshot::OrderBookSnapshot]) -> (usize, usize) {
+fn aggregate_bid_ask_counts(
+    snapshots: &[super::storage::snapshot::OrderBookSnapshot],
+) -> (usize, usize) {
     let mut bid_updates = 0;
     let mut ask_updates = 0;
 
@@ -116,7 +118,11 @@ fn aggregate_bid_ask_counts(snapshots: &[super::storage::snapshot::OrderBookSnap
 /// Calculate flow rates in updates per second (T019)
 ///
 /// Formula: flow_rate = total_updates / window_duration
-fn calculate_flow_rates(bid_updates: usize, ask_updates: usize, window_duration_secs: u32) -> (f64, f64) {
+fn calculate_flow_rates(
+    bid_updates: usize,
+    ask_updates: usize,
+    window_duration_secs: u32,
+) -> (f64, f64) {
     let duration = window_duration_secs.max(1) as f64; // Avoid division by zero
 
     let bid_flow_rate = bid_updates as f64 / duration;
@@ -223,10 +229,7 @@ mod tests {
             determine_flow_direction(6.0, 4.0),
             FlowDirection::ModerateBuy
         ); // Ratio 1.5
-        assert_eq!(
-            determine_flow_direction(5.0, 5.0),
-            FlowDirection::Neutral
-        ); // Ratio 1.0
+        assert_eq!(determine_flow_direction(5.0, 5.0), FlowDirection::Neutral); // Ratio 1.0
         assert_eq!(
             determine_flow_direction(4.0, 6.0),
             FlowDirection::ModerateSell

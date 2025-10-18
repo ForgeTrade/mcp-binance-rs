@@ -5,8 +5,8 @@
 
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 // ============================================================================
@@ -381,11 +381,26 @@ mod tests {
 
     #[test]
     fn test_flow_direction_from_rates() {
-        assert_eq!(FlowDirection::from_flow_rates(100.0, 40.0), FlowDirection::StrongBuy);
-        assert_eq!(FlowDirection::from_flow_rates(60.0, 50.0), FlowDirection::ModerateBuy);
-        assert_eq!(FlowDirection::from_flow_rates(50.0, 50.0), FlowDirection::Neutral);
-        assert_eq!(FlowDirection::from_flow_rates(40.0, 60.0), FlowDirection::ModerateSell);
-        assert_eq!(FlowDirection::from_flow_rates(20.0, 100.0), FlowDirection::StrongSell);
+        assert_eq!(
+            FlowDirection::from_flow_rates(100.0, 40.0),
+            FlowDirection::StrongBuy
+        );
+        assert_eq!(
+            FlowDirection::from_flow_rates(60.0, 50.0),
+            FlowDirection::ModerateBuy
+        );
+        assert_eq!(
+            FlowDirection::from_flow_rates(50.0, 50.0),
+            FlowDirection::Neutral
+        );
+        assert_eq!(
+            FlowDirection::from_flow_rates(40.0, 60.0),
+            FlowDirection::ModerateSell
+        );
+        assert_eq!(
+            FlowDirection::from_flow_rates(20.0, 100.0),
+            FlowDirection::StrongSell
+        );
     }
 
     #[test]
@@ -398,8 +413,14 @@ mod tests {
 
     #[test]
     fn test_impact_level_from_deficit() {
-        assert_eq!(ImpactLevel::from_deficit_pct(85.0), ImpactLevel::FastMovement);
-        assert_eq!(ImpactLevel::from_deficit_pct(65.0), ImpactLevel::ModerateMovement);
+        assert_eq!(
+            ImpactLevel::from_deficit_pct(85.0),
+            ImpactLevel::FastMovement
+        );
+        assert_eq!(
+            ImpactLevel::from_deficit_pct(65.0),
+            ImpactLevel::ModerateMovement
+        );
         assert_eq!(ImpactLevel::from_deficit_pct(40.0), ImpactLevel::Negligible);
     }
 }
