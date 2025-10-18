@@ -21,6 +21,9 @@ Auto-generated from all feature plans. Last updated: 2025-10-17
 - N/A (tests use Binance Testnet API and in-memory mock servers) (004-specify-scripts-bash)
 - In-memory (BTreeMap<Decimal, Decimal> for order book state, HashMap for symbol tracking) (007-orderbook-depth-tools)
 - RocksDB embedded time-series database (1-second snapshots, 7-day retention, ~12M snapshots for 20 pairs, ~500MB-1GB with Zstd compression). Key design: `{symbol}:{unix_timestamp_sec}`, prefix scans for time-range queries. Background cleanup task deletes keys older than 7 days. (008-orderbook-advanced-analytics)
+- N/A (SSE is stateless protocol, session state in-memory only) (009-specify-scripts-bash)
+- Rust 1.90+ (Edition 2024) + axum 0.8+ (HTTP server), tokio 1.48.0 (async runtime), rmcp 0.8.1 (MCP SDK) (010-specify-scripts-bash)
+- In-memory HashMap for session management (no changes) (010-specify-scripts-bash)
 
 ## Project Structure
 ```
@@ -60,14 +63,23 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
 - See constitution.md § Dependency Management for full policy
 
 ## Recent Changes
-- 008-orderbook-advanced-analytics: Added Rust 1.90+ (Edition 2024)
-- 2025-10-17: Completed 007-orderbook-depth-tools implementation (34/43 tasks)
+- 010-specify-scripts-bash: Added Rust 1.90+ (Edition 2024) + axum 0.8+ (HTTP server), tokio 1.48.0 (async runtime), rmcp 0.8.1 (MCP SDK)
+- 2025-10-18: **Completed Feature 009: SSE Transport for Cloud Deployment** (54/65 tasks, 83%)
+  - ✅ Phase 1-5 complete (100%): SSE transport, Shuttle.dev integration, dual transport support
+  - ✅ Remote HTTPS access via Server-Sent Events (rmcp SDK)
+  - ✅ Shuttle.dev deployment ready with automatic HTTPS and secrets management
+  - ✅ Dual transport: stdio (local) + SSE (cloud) with feature flags
+  - ✅ Session management (50 concurrent connections, 30s timeout)
+  - ✅ Health monitoring endpoints (`/health`, `/mcp/sse`, `/mcp/message`)
+  - ✅ Comprehensive documentation (deployment guide, troubleshooting, feature flags)
+  - ⏸️ Deferred to production: Actual Shuttle deployment verification (T037-T038, T061-T062, T065)
+  - 📝 MVP complete: Server is cloud-deployment-ready, all core functionality implemented
+- 009-specify-scripts-bash: Added Rust 1.90+ (Edition 2024)
   - All 3 user stories implemented: Quick Spread Assessment (L1), Detailed Depth Analysis (L2), Service Health Monitoring
   - Progressive disclosure strategy: L1 (15% token cost) → L2-lite (50%, 20 levels) → L2-full (100%, 100 levels)
   - Lazy initialization with WebSocket streaming (<symbol>@depth@100ms)
   - REST API fallback when data stale (>5s)
   - 20 concurrent symbol limit with GCRA rate limiting (1000 req/min)
-- 007-orderbook-depth-tools: Added Rust 1.90+ (Edition 2024)
 
 ## Order Book Module Architecture (feature: orderbook)
 ### Progressive Disclosure Strategy

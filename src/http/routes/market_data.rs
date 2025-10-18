@@ -146,12 +146,12 @@ pub async fn get_klines(
     }
 
     // Validate limit
-    if let Some(limit) = params.limit
-        && limit > 1000
-    {
-        return Err(McpError::InvalidRequest(
-            "limit cannot exceed 1000".to_string(),
-        ));
+    if let Some(limit) = params.limit {
+        if limit > 1000 {
+            return Err(McpError::InvalidRequest(
+                "limit cannot exceed 1000".to_string(),
+            ));
+        }
     }
 
     let klines = state
@@ -227,12 +227,12 @@ pub async fn get_trades(
         ));
     }
 
-    if let Some(limit) = params.limit
-        && limit > 1000
-    {
-        return Err(McpError::InvalidRequest(
-            "limit cannot exceed 1000".to_string(),
-        ));
+    if let Some(limit) = params.limit {
+        if limit > 1000 {
+            return Err(McpError::InvalidRequest(
+                "limit cannot exceed 1000".to_string(),
+            ));
+        }
     }
 
     let trades = state
