@@ -1,14 +1,16 @@
-//! Integration tests for SSE transport (Feature 009 - Phase 3)
+//! Integration tests for Streamable HTTP transport (Feature 010)
 //!
-//! These tests verify SSE handshake, message exchange, and tool calls over SSE transport.
-//! Tests follow test-first approach: written BEFORE implementation (T015-T019).
+//! These tests verify Streamable HTTP protocol (MCP March 2025 spec):
+//! - POST /mcp with initialize method creates session
+//! - Mcp-Session-Id header returned and validated
+//! - Tool calls work over Streamable HTTP
 //!
 //! ## Test Coverage
 //!
-//! - T016: SSE handshake establishes connection and returns connection-id header
-//! - T017: POST to /mcp/message with valid connection-id returns 202 Accepted
-//! - T018: Call `get_ticker` via SSE returns valid ticker data within 2s
-//! - T019: 3 concurrent SSE connections all succeed and receive unique connection IDs
+//! - T016: POST /mcp initialize creates session and returns Mcp-Session-Id header
+//! - T017: POST /mcp with valid Mcp-Session-Id executes tools/list
+//! - T018: Call `get_ticker` via Streamable HTTP returns valid ticker data within 2s
+//! - T019: 3 concurrent sessions all succeed and receive unique Mcp-Session-Id values
 //!
 //! ## Running Tests
 //!
@@ -42,25 +44,39 @@ async fn create_test_sse_router() -> axum::Router {
         .with_state(state)
 }
 
-/// T016: Test SSE handshake establishes connection and returns connection-id header
+/// T016: Test POST /mcp initialize creates session and returns Mcp-Session-Id header
 ///
-/// ## Acceptance Criteria
+/// ## Acceptance Criteria (Streamable HTTP spec)
 ///
-/// - GET /mcp/sse returns 200 OK
-/// - Response headers include X-Connection-ID
-/// - Connection ID is valid UUID v4 format
-/// - Response is SSE stream (Content-Type: text/event-stream)
+/// - POST /mcp with initialize method returns 200 OK
+/// - Response headers include Mcp-Session-Id
+/// - Session ID is valid UUID v4 format
+/// - Response is valid JSON-RPC 2.0 initialize response
 #[tokio::test]
-async fn test_sse_handshake_returns_connection_id() {
+async fn test_initialize_returns_session_id() {
     let app = create_test_sse_router().await;
+
+    let initialize_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "test-client",
+                "version": "1.0"
+            }
+        }
+    });
 
     let response = app
         .oneshot(
             Request::builder()
-                .method("GET")
-                .uri("/mcp/sse")
-                .header("Accept", "text/event-stream")
-                .body(Body::empty())
+                .method("POST")
+                .uri("/mcp")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
                 .unwrap(),
         )
         .await
@@ -70,74 +86,86 @@ async fn test_sse_handshake_returns_connection_id() {
     assert_eq!(
         response.status(),
         StatusCode::OK,
-        "SSE handshake should return 200 OK"
+        "Initialize should return 200 OK"
     );
 
-    // Assert X-Connection-ID header exists
-    let connection_id = response
+    // Assert Mcp-Session-Id header exists
+    let session_id = response
         .headers()
-        .get("X-Connection-ID")
-        .expect("Response should include X-Connection-ID header");
+        .get("Mcp-Session-Id")
+        .expect("Response should include Mcp-Session-Id header");
 
-    let connection_id_str = connection_id.to_str().unwrap();
+    let session_id_str = session_id.to_str().unwrap();
 
-    // Assert connection ID is valid UUID v4 format
+    // Assert session ID is valid UUID v4 format
     assert!(
-        uuid::Uuid::parse_str(connection_id_str).is_ok(),
-        "Connection ID should be valid UUID v4: {}",
-        connection_id_str
+        uuid::Uuid::parse_str(session_id_str).is_ok(),
+        "Session ID should be valid UUID v4: {}",
+        session_id_str
     );
 
-    // Assert Content-Type is text/event-stream
-    let content_type = response
-        .headers()
-        .get("Content-Type")
-        .expect("Response should include Content-Type header");
+    // Parse and validate JSON-RPC response
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let result: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
 
-    assert_eq!(
-        content_type,
-        "text/event-stream",
-        "SSE response should have Content-Type: text/event-stream"
+    assert_eq!(result["jsonrpc"], "2.0", "Should be JSON-RPC 2.0");
+    assert_eq!(result["id"], 1, "Should match request ID");
+    assert!(
+        result["result"]["serverInfo"].is_object(),
+        "Should contain server info"
     );
 }
 
-/// T017: Test POST to /mcp/message with valid connection-id returns 202 Accepted
+/// T017: Test POST /mcp with valid Mcp-Session-Id executes tools/list
 ///
-/// ## Acceptance Criteria
+/// ## Acceptance Criteria (Streamable HTTP spec)
 ///
-/// - POST /mcp/message with valid connection-id returns 202 Accepted
-/// - Invalid connection-id returns 404 Not Found
-/// - Missing connection-id returns 400 Bad Request
+/// - POST /mcp with valid Mcp-Session-Id returns 200 OK
+/// - Invalid Mcp-Session-Id returns 404 Not Found
+/// - Missing Mcp-Session-Id returns 400 Bad Request
 /// - Request body must be valid JSON-RPC 2.0
 #[tokio::test]
-async fn test_post_message_with_valid_connection_id() {
+async fn test_post_mcp_with_valid_session_id() {
     let app = create_test_sse_router().await;
 
-    // First, establish SSE connection to get connection ID
-    let handshake_response = app
+    // First, initialize to get session ID
+    let initialize_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "1.0"}
+        }
+    });
+
+    let init_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .method("GET")
-                .uri("/mcp/sse")
-                .header("Accept", "text/event-stream")
-                .body(Body::empty())
+                .method("POST")
+                .uri("/mcp")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    let connection_id = handshake_response
+    let session_id = init_response
         .headers()
-        .get("X-Connection-ID")
-        .expect("Handshake should return connection ID")
+        .get("Mcp-Session-Id")
+        .expect("Initialize should return session ID")
         .to_str()
         .unwrap();
 
-    // Test valid connection ID with JSON-RPC request
-    let json_rpc_request = json!({
+    // Test valid session ID with tools/list request
+    let tools_request = serde_json::json!({
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": 2,
         "method": "tools/list",
         "params": {}
     });
@@ -147,10 +175,10 @@ async fn test_post_message_with_valid_connection_id() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/mcp/message")
+                .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .header("X-Connection-ID", connection_id)
-                .body(Body::from(serde_json::to_string(&json_rpc_request).unwrap()))
+                .header("Mcp-Session-Id", session_id)
+                .body(Body::from(serde_json::to_string(&tools_request).unwrap()))
                 .unwrap(),
         )
         .await
@@ -158,20 +186,20 @@ async fn test_post_message_with_valid_connection_id() {
 
     assert_eq!(
         response.status(),
-        StatusCode::ACCEPTED,
-        "POST /mcp/message with valid connection-id should return 202 Accepted"
+        StatusCode::OK,
+        "POST /mcp with valid session should return 200 OK"
     );
 
-    // Test invalid connection ID returns 404
+    // Test invalid session ID returns 404
     let invalid_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/mcp/message")
+                .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .header("X-Connection-ID", "invalid-uuid")
-                .body(Body::from(serde_json::to_string(&json_rpc_request).unwrap()))
+                .header("Mcp-Session-Id", "invalid-uuid")
+                .body(Body::from(serde_json::to_string(&tools_request).unwrap()))
                 .unwrap(),
         )
         .await
@@ -180,17 +208,17 @@ async fn test_post_message_with_valid_connection_id() {
     assert_eq!(
         invalid_response.status(),
         StatusCode::NOT_FOUND,
-        "POST /mcp/message with invalid connection-id should return 404 Not Found"
+        "POST /mcp with invalid session should return 404 Not Found"
     );
 
-    // Test missing connection ID returns 400
+    // Test missing session ID returns 400
     let missing_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/mcp/message")
+                .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .body(Body::from(serde_json::to_string(&json_rpc_request).unwrap()))
+                .body(Body::from(serde_json::to_string(&tools_request).unwrap()))
                 .unwrap(),
         )
         .await
@@ -199,48 +227,59 @@ async fn test_post_message_with_valid_connection_id() {
     assert_eq!(
         missing_response.status(),
         StatusCode::BAD_REQUEST,
-        "POST /mcp/message without connection-id should return 400 Bad Request"
+        "POST /mcp without session should return 400 Bad Request"
     );
 }
 
-/// T018: Test call `get_ticker` via SSE returns valid ticker data within 2s
+/// T018: Test call `get_ticker` via Streamable HTTP returns valid ticker data within 2s
 ///
-/// ## Acceptance Criteria
+/// ## Acceptance Criteria (Streamable HTTP spec)
 ///
-/// - SSE connection established successfully
+/// - POST /mcp with initialize method creates session
 /// - JSON-RPC call to `get_ticker` tool succeeds
 /// - Response contains valid ticker data (symbol, price, timestamp)
 /// - Response received within 2 seconds
 /// - Tool behavior identical to stdio transport
 #[tokio::test]
-async fn test_get_ticker_via_sse_returns_valid_data() {
+async fn test_get_ticker_via_streamable_http_returns_valid_data() {
     let app = create_test_sse_router().await;
 
-    // Establish SSE connection
-    let handshake_response = app
+    // Initialize session
+    let initialize_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "1.0"}
+        }
+    });
+
+    let init_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .method("GET")
-                .uri("/mcp/sse")
-                .header("Accept", "text/event-stream")
-                .body(Body::empty())
+                .method("POST")
+                .uri("/mcp")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    let connection_id = handshake_response
+    let session_id = init_response
         .headers()
-        .get("X-Connection-ID")
-        .unwrap()
+        .get("Mcp-Session-Id")
+        .expect("Initialize should return session ID")
         .to_str()
         .unwrap();
 
     // Call get_ticker tool via JSON-RPC
     let get_ticker_request = json!({
         "jsonrpc": "2.0",
-        "id": 1,
+        "id": 2,
         "method": "tools/call",
         "params": {
             "name": "get_ticker",
@@ -257,9 +296,9 @@ async fn test_get_ticker_via_sse_returns_valid_data() {
         app.clone().oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/mcp/message")
+                .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .header("X-Connection-ID", connection_id)
+                .header("Mcp-Session-Id", session_id)
                 .body(Body::from(
                     serde_json::to_string(&get_ticker_request).unwrap(),
                 ))
@@ -274,8 +313,8 @@ async fn test_get_ticker_via_sse_returns_valid_data() {
 
     assert_eq!(
         response.status(),
-        StatusCode::ACCEPTED,
-        "get_ticker call should be accepted"
+        StatusCode::OK,
+        "get_ticker call should return 200 OK"
     );
 
     assert!(
@@ -284,24 +323,15 @@ async fn test_get_ticker_via_sse_returns_valid_data() {
         elapsed
     );
 
-    // Parse SSE event stream to extract ticker data
+    // Parse JSON-RPC response
     let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap();
-
-    // SSE events have format: data: {...}\n\n
-    let json_data = body_str
-        .lines()
-        .find(|line| line.starts_with("data: "))
-        .map(|line| line.strip_prefix("data: ").unwrap())
-        .expect("SSE stream should contain data event");
-
-    let result: Value = serde_json::from_str(json_data).unwrap();
+    let result: Value = serde_json::from_slice(&body_bytes).unwrap();
 
     // Validate ticker data structure
     assert_eq!(result["jsonrpc"], "2.0", "Should be JSON-RPC 2.0");
-    assert_eq!(result["id"], 1, "Should match request ID");
+    assert_eq!(result["id"], 2, "Should match request ID");
     assert!(
         result["result"].is_object(),
         "Result should contain ticker data"
@@ -315,32 +345,46 @@ async fn test_get_ticker_via_sse_returns_valid_data() {
     );
 }
 
-/// T019: Test 3 concurrent SSE connections all succeed and receive unique connection IDs
+/// T019: Test 3 concurrent sessions all succeed and receive unique Mcp-Session-Id values
 ///
-/// ## Acceptance Criteria
+/// ## Acceptance Criteria (Streamable HTTP spec)
 ///
-/// - 3 concurrent SSE handshakes all return 200 OK
-/// - All 3 receive unique X-Connection-ID headers
-/// - No connection IDs are duplicated
-/// - All 3 connections remain active simultaneously
-/// - Concurrent limit enforcement works (max 50 connections per SC-004)
+/// - 3 concurrent POST /mcp initialize calls all return 200 OK
+/// - All 3 receive unique Mcp-Session-Id headers
+/// - No session IDs are duplicated
+/// - All 3 sessions remain active simultaneously
+/// - Concurrent limit enforcement works (max 50 sessions per SC-004)
 #[tokio::test]
-async fn test_concurrent_sse_connections_receive_unique_ids() {
+async fn test_concurrent_sessions_receive_unique_ids() {
     let app = create_test_sse_router().await;
 
-    // Create 3 concurrent SSE connection requests
+    // Create 3 concurrent initialize requests
     let mut tasks = vec![];
 
     for i in 0..3 {
         let app_clone = app.clone();
         let task = tokio::spawn(async move {
+            let initialize_request = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": i + 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {
+                        "name": format!("test-client-{}", i),
+                        "version": "1.0"
+                    }
+                }
+            });
+
             let response = app_clone
                 .oneshot(
                     Request::builder()
-                        .method("GET")
-                        .uri("/mcp/sse")
-                        .header("Accept", "text/event-stream")
-                        .body(Body::empty())
+                        .method("POST")
+                        .uri("/mcp")
+                        .header("Content-Type", "application/json")
+                        .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
                         .unwrap(),
                 )
                 .await
@@ -349,65 +393,65 @@ async fn test_concurrent_sse_connections_receive_unique_ids() {
             assert_eq!(
                 response.status(),
                 StatusCode::OK,
-                "Concurrent connection {} should succeed",
+                "Concurrent session {} should succeed",
                 i
             );
 
-            let connection_id = response
+            let session_id = response
                 .headers()
-                .get("X-Connection-ID")
-                .expect("Should receive connection ID")
+                .get("Mcp-Session-Id")
+                .expect("Should receive session ID")
                 .to_str()
                 .unwrap()
                 .to_string();
 
-            connection_id
+            session_id
         });
 
         tasks.push(task);
     }
 
-    // Wait for all 3 connections to complete
-    let connection_ids: Vec<String> = futures_util::future::join_all(tasks)
+    // Wait for all 3 sessions to complete
+    let session_ids: Vec<String> = futures_util::future::join_all(tasks)
         .await
         .into_iter()
         .map(|result| result.unwrap())
         .collect();
 
-    // Verify we have 3 connection IDs
+    // Verify we have 3 session IDs
     assert_eq!(
-        connection_ids.len(),
+        session_ids.len(),
         3,
-        "Should receive 3 connection IDs"
+        "Should receive 3 session IDs"
     );
 
     // Verify all IDs are unique (no duplicates)
-    let unique_ids: std::collections::HashSet<_> = connection_ids.iter().collect();
+    let unique_ids: std::collections::HashSet<_> = session_ids.iter().collect();
     assert_eq!(
         unique_ids.len(),
         3,
-        "All 3 connection IDs should be unique: {:?}",
-        connection_ids
+        "All 3 session IDs should be unique: {:?}",
+        session_ids
     );
 
     // Verify all IDs are valid UUID v4
-    for (i, id) in connection_ids.iter().enumerate() {
+    for (i, id) in session_ids.iter().enumerate() {
         assert!(
             uuid::Uuid::parse_str(id).is_ok(),
-            "Connection ID {} should be valid UUID: {}",
+            "Session ID {} should be valid UUID: {}",
             i,
             id
         );
     }
 }
 
-/// Test max concurrent connections limit (SC-004)
+/// Test max concurrent sessions limit (SC-004)
 ///
-/// ## Acceptance Criteria
+/// ## Acceptance Criteria (Streamable HTTP spec)
 ///
-/// - 50 concurrent connections succeed
-/// - 51st connection returns HTTP 503 Service Unavailable
-/// - Error message indicates max connections reached
+/// - 50 concurrent sessions succeed
+/// - 51st session registration fails
+/// - SessionManager enforces max session limit (50)
 #[tokio::test]
 #[ignore] // Expensive test - run manually with: cargo test --features sse,orderbook_analytics -- --ignored
 async fn test_max_concurrent_connections_enforced() {

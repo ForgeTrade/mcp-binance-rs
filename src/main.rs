@@ -163,10 +163,9 @@ async fn run_sse_server() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start HTTP server
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("SSE server ready - listening on {}", addr);
-    tracing::info!("SSE endpoint: http://{}/mcp/sse", addr);
-    tracing::info!("Message endpoint: http://{}/mcp/message", addr);
-    tracing::info!("Test with: curl http://{}/health", addr);
+    tracing::info!("Streamable HTTP server ready - listening on {}", addr);
+    tracing::info!("MCP endpoint: POST http://{}/mcp (use 'initialize' method to create session)", addr);
+    tracing::info!("Health check: http://{}/health", addr);
 
     axum::serve(listener, app).await?;
 
