@@ -88,11 +88,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Implement get_credentials_status tool handler in src/tools/credentials.rs (returns configured: false when no credentials, or full status with environment/key_prefix/configured_at when configured)
-- [ ] T033 [US2] Add get_credentials_status tool to tool_router in src/server/tool_router.rs with #[tool] macro
-- [ ] T034 [US2] Add #[serde(skip)] attribute to Credentials.session_id field in src/transport/sse/session.rs to prevent serialization
-- [ ] T035 [US2] Verify SessionManager::cleanup() in src/transport/sse/session.rs removes credentials atomically with session removal
-- [ ] T036 [US2] Add tracing::warn! log in SessionManager::store_credentials() when replacing existing credentials (last write wins behavior)
+- [X] T032 [US2] Implement get_credentials_status tool handler in src/server/tool_router.rs (returns configured: false when no credentials, or full status with environment/key_prefix/configured_at when configured)
+- [X] T033 [US2] Add get_credentials_status tool to tool_router in src/server/tool_router.rs with #[tool] macro
+- [X] T034 [US2] Verify #[serde(skip)] attribute on Credentials.session_id field in src/transport/sse/session.rs (already present)
+- [X] T035 [US2] Verify SessionManager::cleanup_stale_sessions() in src/transport/sse/session.rs removes credentials atomically with session removal (verified lines 256-263)
+- [X] T036 [US2] Verify tracing::warn! log in SessionManager::store_credentials() when replacing existing credentials (verified lines 320-324, last write wins behavior)
 
 **Checkpoint**: Credential isolation and security guarantees are enforced
 

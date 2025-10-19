@@ -214,6 +214,19 @@ pub struct ConfigureCredentialsParam {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct ConfigureCredentialsParam {}
 
+// SSE version with session_id
+#[cfg(feature = "sse")]
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct CredentialsStatusParam {
+    /// Session ID from Mcp-Session-Id header
+    pub session_id: String,
+}
+
+// Non-SSE stub version (credentials not supported)
+#[cfg(not(feature = "sse"))]
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct CredentialsStatusParam {}
+
 #[tool_router(vis = "pub")]
 impl BinanceServer {
     /// Get current Binance server time
@@ -334,7 +347,7 @@ impl BinanceServer {
         }
 
         // Parse environment
-        let environment = match Environment::from_str(&p.environment) {
+        let environment = match p.environment.parse::<Environment>() {
             Ok(env) => env,
             Err(msg) => {
                 let error_json = json!({
@@ -396,6 +409,76 @@ impl BinanceServer {
     pub async fn configure_credentials(
         &self,
         _params: Parameters<ConfigureCredentialsParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Credential management is not enabled in this deployment. Rebuild with --features sse"
+                .to_string(),
+            None,
+        ))
+    }
+
+    /// Get credential configuration status for current session
+    ///
+    /// Returns whether credentials are configured and their details without
+    /// revealing the full API key or secret (NFR-002, NFR-003).
+    ///
+    /// # Response Format
+    ///
+    /// When not configured:
+    /// ```json
+    /// {
+    ///   "configured": false
+    /// }
+    /// ```
+    ///
+    /// When configured:
+    /// ```json
+    /// {
+    ///   "configured": true,
+    ///   "environment": "testnet",
+    ///   "key_prefix": "12345678",
+    ///   "configured_at": "2025-10-19T10:30:45Z"
+    /// }
+    /// ```
+    #[cfg(feature = "sse")]
+    #[tool(
+        description = "Get current credential configuration status. Returns environment, API key prefix (first 8 chars), and configuration timestamp. Fast in-memory lookup (<50ms)."
+    )]
+    pub async fn get_credentials_status(
+        &self,
+        params: Parameters<CredentialsStatusParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let credentials = self
+            .session_manager
+            .get_credentials(&params.0.session_id)
+            .await;
+
+        let response_json = if let Some(creds) = credentials {
+            // Credentials configured - return full status
+            json!({
+                "configured": true,
+                "environment": creds.environment.to_string(),
+                "key_prefix": &creds.api_key[..8],
+                "configured_at": creds.configured_at.to_rfc3339(),
+            })
+        } else {
+            // No credentials configured
+            json!({
+                "configured": false
+            })
+        };
+
+        Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]))
+    }
+
+    /// Stub implementation for get_credentials_status when SSE feature is disabled
+    #[cfg(not(feature = "sse"))]
+    #[tool(description = "Credential status not available (requires 'sse' feature)")]
+    pub async fn get_credentials_status(
+        &self,
+        _params: Parameters<CredentialsStatusParam>,
     ) -> Result<CallToolResult, ErrorData> {
         Err(ErrorData::internal_error(
             "Credential management is not enabled in this deployment. Rebuild with --features sse"
