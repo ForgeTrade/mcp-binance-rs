@@ -16,7 +16,7 @@ use super::session::SessionManager;
 use crate::server::BinanceServer;
 use crate::tools::chatgpt::{search_symbols, fetch_symbol_details};
 use crate::binance::BinanceClient;
-use crate::server::tool_router::*; // Import parameter types
+use crate::server::tool_router::*; // Import all parameter types
 use rmcp::handler::server::wrapper::Parameters;
 
 /// Shared state for SSE handlers
@@ -342,6 +342,105 @@ pub async fn message_post(
                 "get_average_price" => {
                     match serde_json::from_value::<SymbolParam>(arguments.clone()) {
                         Ok(params) => match state.mcp_server.get_average_price(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_account_info" => {
+                    match state.mcp_server.get_account_info().await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_account_trades" => {
+                    match serde_json::from_value::<AccountTradesParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_account_trades(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "place_order" => {
+                    match serde_json::from_value::<PlaceOrderParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.place_order(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_order" => {
+                    match serde_json::from_value::<OrderParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_order(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "cancel_order" => {
+                    match serde_json::from_value::<OrderParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.cancel_order(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_open_orders" => {
+                    match serde_json::from_value::<OpenOrdersParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_open_orders(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_all_orders" => {
+                    match serde_json::from_value::<AllOrdersParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_all_orders(Parameters(params)).await {
                             Ok(result) => serde_json::to_value(&result).unwrap(),
                             Err(e) => serde_json::json!({
                                 "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
