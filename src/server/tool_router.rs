@@ -227,6 +227,19 @@ pub struct CredentialsStatusParam {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct CredentialsStatusParam {}
 
+// SSE version with session_id
+#[cfg(feature = "sse")]
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct RevokeCredentialsParam {
+    /// Session ID from Mcp-Session-Id header
+    pub session_id: String,
+}
+
+// Non-SSE stub version (credentials not supported)
+#[cfg(not(feature = "sse"))]
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct RevokeCredentialsParam {}
+
 #[tool_router(vis = "pub")]
 impl BinanceServer {
     /// Get current Binance server time
@@ -479,6 +492,61 @@ impl BinanceServer {
     pub async fn get_credentials_status(
         &self,
         _params: Parameters<CredentialsStatusParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Credential management is not enabled in this deployment. Rebuild with --features sse"
+                .to_string(),
+            None,
+        ))
+    }
+
+    /// Revoke API credentials from current session
+    ///
+    /// Clears credentials from the session without closing the connection.
+    /// After revocation, authenticated tools will return CREDENTIALS_NOT_CONFIGURED
+    /// until credentials are reconfigured.
+    ///
+    /// # Behavior
+    ///
+    /// - Always succeeds (idempotent - revoking non-existent credentials is a no-op)
+    /// - Session remains active after revocation
+    /// - In-flight authenticated requests may complete with old credentials
+    /// - Subsequent authenticated tool calls return CREDENTIALS_NOT_CONFIGURED error
+    ///
+    /// # Use Cases
+    ///
+    /// - Security-conscious users clearing credentials mid-session
+    /// - Testing credential configuration flow without reconnecting
+    /// - Switching between testnet/mainnet by revoking then reconfiguring
+    #[cfg(feature = "sse")]
+    #[tool(
+        description = "Revoke API credentials from session. Session stays active but authenticated tools return CREDENTIALS_NOT_CONFIGURED until reconfigured. Idempotent (always succeeds)."
+    )]
+    pub async fn revoke_credentials(
+        &self,
+        params: Parameters<RevokeCredentialsParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        // Revoke credentials (idempotent - always succeeds)
+        self.session_manager
+            .revoke_credentials(&params.0.session_id)
+            .await;
+
+        let response_json = json!({
+            "revoked": true,
+            "message": "Credentials successfully revoked from session"
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            response_json.to_string(),
+        )]))
+    }
+
+    /// Stub implementation for revoke_credentials when SSE feature is disabled
+    #[cfg(not(feature = "sse"))]
+    #[tool(description = "Credential revocation not available (requires 'sse' feature)")]
+    pub async fn revoke_credentials(
+        &self,
+        _params: Parameters<RevokeCredentialsParam>,
     ) -> Result<CallToolResult, ErrorData> {
         Err(ErrorData::internal_error(
             "Credential management is not enabled in this deployment. Rebuild with --features sse"

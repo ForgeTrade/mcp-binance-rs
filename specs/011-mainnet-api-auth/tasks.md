@@ -106,8 +106,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] Implement revoke_credentials tool handler in src/tools/credentials.rs (calls SessionManager::revoke_credentials, returns {revoked: true, message: "Credentials successfully revoked from session"})
-- [ ] T038 [US3] Add revoke_credentials tool to tool_router in src/server/tool_router.rs with #[tool] macro
+- [X] T037 [US3] Implement revoke_credentials tool handler in src/server/tool_router.rs (calls SessionManager::revoke_credentials, returns {revoked: true, message: "Credentials successfully revoked from session"})
+- [X] T038 [US3] Add revoke_credentials tool to tool_router in src/server/tool_router.rs with #[tool] macro
 
 **Checkpoint**: Users can revoke credentials without closing session
 
