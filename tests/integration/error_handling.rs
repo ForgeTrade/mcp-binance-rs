@@ -143,12 +143,10 @@ async fn test_rate_limit_exceeded_handling() {
     });
 
     assert_eq!(rate_limit_response["code"], -1003);
-    assert!(
-        rate_limit_response["msg"]
-            .as_str()
-            .unwrap()
-            .contains("Too many")
-    );
+    assert!(rate_limit_response["msg"]
+        .as_str()
+        .unwrap()
+        .contains("Too many"));
 
     // Verify rate limit error code recognition
     let error_code = rate_limit_response["code"].as_i64().unwrap();

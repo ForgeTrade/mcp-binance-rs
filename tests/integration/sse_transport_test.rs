@@ -32,7 +32,7 @@ use tower::ServiceExt;
 /// Uses test configuration with short timeouts and low connection limits.
 async fn create_test_sse_router() -> axum::Router {
     use mcp_binance_server::server::BinanceServer;
-    use mcp_binance_server::transport::sse::{SessionManager, SseState, message_post};
+    use mcp_binance_server::transport::sse::{message_post, SessionManager, SseState};
 
     let session_manager = SessionManager::new();
     let mcp_server = BinanceServer::new();
@@ -76,7 +76,9 @@ async fn test_initialize_returns_session_id() {
                 .method("POST")
                 .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
+                .body(Body::from(
+                    serde_json::to_string(&initialize_request).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -149,7 +151,9 @@ async fn test_post_mcp_with_valid_session_id() {
                 .method("POST")
                 .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
+                .body(Body::from(
+                    serde_json::to_string(&initialize_request).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -263,7 +267,9 @@ async fn test_get_ticker_via_streamable_http_returns_valid_data() {
                 .method("POST")
                 .uri("/mcp")
                 .header("Content-Type", "application/json")
-                .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
+                .body(Body::from(
+                    serde_json::to_string(&initialize_request).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -384,7 +390,9 @@ async fn test_concurrent_sessions_receive_unique_ids() {
                         .method("POST")
                         .uri("/mcp")
                         .header("Content-Type", "application/json")
-                        .body(Body::from(serde_json::to_string(&initialize_request).unwrap()))
+                        .body(Body::from(
+                            serde_json::to_string(&initialize_request).unwrap(),
+                        ))
                         .unwrap(),
                 )
                 .await
@@ -419,11 +427,7 @@ async fn test_concurrent_sessions_receive_unique_ids() {
         .collect();
 
     // Verify we have 3 session IDs
-    assert_eq!(
-        session_ids.len(),
-        3,
-        "Should receive 3 session IDs"
-    );
+    assert_eq!(session_ids.len(), 3, "Should receive 3 session IDs");
 
     // Verify all IDs are unique (no duplicates)
     let unique_ids: std::collections::HashSet<_> = session_ids.iter().collect();
@@ -462,9 +466,7 @@ async fn test_max_concurrent_connections_enforced() {
     // Register 50 connections (should all succeed)
     let mut connection_ids = vec![];
     for i in 0..50 {
-        let addr = format!("127.0.0.1:{}", 10000 + i)
-            .parse()
-            .unwrap();
+        let addr = format!("127.0.0.1:{}", 10000 + i).parse().unwrap();
         let conn_id = session_manager
             .register_connection(addr, Some(format!("test-agent-{}", i)))
             .await

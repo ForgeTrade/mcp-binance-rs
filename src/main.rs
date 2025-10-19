@@ -6,9 +6,9 @@
 //! - SSE transport (--mode sse): Server-Sent Events for cloud deployment
 
 use mcp_binance_server::server::BinanceServer;
-use rmcp::ServiceExt;
 use rmcp::transport::stdio;
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use rmcp::ServiceExt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Standard main entry point (stdio or standalone SSE server)
 ///
@@ -34,7 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http_mode = args.iter().any(|arg| arg == "--http");
 
     // Parse --mode flag (T012)
-    let mode = args.iter()
+    let mode = args
+        .iter()
         .position(|arg| arg == "--mode")
         .and_then(|pos| args.get(pos + 1))
         .map(|s| s.as_str());
@@ -101,7 +102,7 @@ async fn run_stdio_server() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "http-api")]
 async fn run_http_server() -> Result<(), Box<dyn std::error::Error>> {
     use mcp_binance_server::config::HttpConfig;
-    use mcp_binance_server::http::{RateLimiter, TokenStore, create_router};
+    use mcp_binance_server::http::{create_router, RateLimiter, TokenStore};
 
     // Load HTTP configuration from environment
     let config = HttpConfig::from_env()?;
@@ -164,7 +165,10 @@ async fn run_sse_server() -> Result<(), Box<dyn std::error::Error>> {
     // Start HTTP server
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("Streamable HTTP server ready - listening on {}", addr);
-    tracing::info!("MCP endpoint: POST http://{}/mcp (use 'initialize' method to create session)", addr);
+    tracing::info!(
+        "MCP endpoint: POST http://{}/mcp (use 'initialize' method to create session)",
+        addr
+    );
     tracing::info!("Health check: http://{}/health", addr);
 
     axum::serve(listener, app).await?;
@@ -179,7 +183,7 @@ async fn run_sse_server() -> Result<(), Box<dyn std::error::Error>> {
 fn create_sse_router() -> axum::Router {
     use mcp_binance_server::server::BinanceServer;
     use mcp_binance_server::transport::sse::{
-        SessionManager, SseState, message_post, tools_list, server_info,
+        message_post, server_info, tools_list, SessionManager, SseState,
     };
 
     // Create session manager and MCP server

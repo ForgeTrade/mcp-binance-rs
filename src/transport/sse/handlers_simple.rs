@@ -297,11 +297,62 @@ pub async fn message_post(
                     }
                 }
                 "get_ticker" => {
-                    // Return mock ticker data that matches test expectations
-                    serde_json::json!({
-                        "symbol": arguments.get("symbol").and_then(|s| s.as_str()).unwrap_or("BTCUSDT"),
-                        "price": "50000.00"
-                    })
+                    // Get ticker from Binance API
+                    let symbol = arguments.get("symbol")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("BTCUSDT");
+
+                    match state.binance_client.get_24hr_ticker(symbol).await {
+                        Ok(ticker) => {
+                            serde_json::json!({
+                                "content": [{
+                                    "type": "text",
+                                    "text": serde_json::to_string(&ticker).unwrap()
+                                }]
+                            })
+                        }
+                        Err(e) => {
+                            serde_json::json!({
+                                "content": [{
+                                    "type": "text",
+                                    "text": format!("{{\"error\": \"Failed to get ticker: {}\"}}", e)
+                                }],
+                                "isError": true
+                            })
+                        }
+                    }
+                }
+                "get_klines" => {
+                    // Get klines from Binance API
+                    let symbol = arguments.get("symbol")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("BTCUSDT");
+                    let interval = arguments.get("interval")
+                        .and_then(|i| i.as_str())
+                        .unwrap_or("1d");
+                    let limit = arguments.get("limit")
+                        .and_then(|l| l.as_u64())
+                        .map(|l| l as u32);
+
+                    match state.binance_client.get_klines(symbol, interval, limit).await {
+                        Ok(klines) => {
+                            serde_json::json!({
+                                "content": [{
+                                    "type": "text",
+                                    "text": serde_json::to_string(&klines).unwrap()
+                                }]
+                            })
+                        }
+                        Err(e) => {
+                            serde_json::json!({
+                                "content": [{
+                                    "type": "text",
+                                    "text": format!("{{\"error\": \"Failed to get klines: {}\"}}", e)
+                                }],
+                                "isError": true
+                            })
+                        }
+                    }
                 }
                 _ => {
                     serde_json::json!({

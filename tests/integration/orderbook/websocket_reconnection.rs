@@ -4,7 +4,7 @@
 //! connections are interrupted or fail.
 
 use mcp_binance_server::orderbook::websocket::DepthWebSocketClient;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 #[tokio::test]
 #[ignore] // Requires real network connection
