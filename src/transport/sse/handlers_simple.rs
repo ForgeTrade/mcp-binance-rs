@@ -16,6 +16,8 @@ use super::session::SessionManager;
 use crate::server::BinanceServer;
 use crate::tools::chatgpt::{search_symbols, fetch_symbol_details};
 use crate::binance::BinanceClient;
+use crate::server::tool_router::*; // Import parameter types
+use rmcp::handler::server::wrapper::Parameters;
 
 /// Shared state for SSE handlers
 #[derive(Clone)]
@@ -149,82 +151,53 @@ pub async fn message_post(
             })
         }
         "tools/list" => {
-            // Return full list of available tools (ChatGPT-compatible + Binance)
+            // Get tools from rmcp SDK router
+            let sdk_tools = state.mcp_server.tool_router.list_all();
+
+            // Add ChatGPT-required tools (search, fetch)
+            let mut all_tools: Vec<serde_json::Value> = sdk_tools
+                .iter()
+                .map(|tool| {
+                    serde_json::json!({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "inputSchema": tool.input_schema
+                    })
+                })
+                .collect();
+
+            // Prepend ChatGPT tools (search, fetch)
+            all_tools.insert(0, serde_json::json!({
+                "name": "search",
+                "description": "Search for cryptocurrency trading pairs by keyword (e.g., BTC, ETH, USDT). Returns top matching symbols with current prices.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query - cryptocurrency symbol or name (e.g., 'BTC', 'ethereum', 'USDT pairs')"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }));
+            all_tools.insert(1, serde_json::json!({
+                "name": "fetch",
+                "description": "Fetch detailed market data for a specific trading symbol. Returns comprehensive information including 24h stats, order book depth, and trading rules.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Trading symbol (e.g., BTCUSDT, ETHBTC) - use search to find available symbols"
+                        }
+                    },
+                    "required": ["id"]
+                }
+            }));
+
             serde_json::json!({
-                "tools": [
-                    {
-                        "name": "search",
-                        "description": "Search for cryptocurrency trading pairs by keyword (e.g., BTC, ETH, USDT). Returns top matching symbols with current prices.",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "query": {
-                                    "type": "string",
-                                    "description": "Search query - cryptocurrency symbol or name (e.g., 'BTC', 'ethereum', 'USDT pairs')"
-                                }
-                            },
-                            "required": ["query"]
-                        }
-                    },
-                    {
-                        "name": "fetch",
-                        "description": "Fetch detailed market data for a specific trading symbol. Returns comprehensive information including 24h stats, order book depth, and trading rules.",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Trading symbol (e.g., BTCUSDT, ETHBTC) - use search to find available symbols"
-                                }
-                            },
-                            "required": ["id"]
-                        }
-                    },
-                    {
-                        "name": "get_ticker",
-                        "description": "Get current ticker price for a symbol",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "symbol": {
-                                    "type": "string",
-                                    "description": "Trading pair symbol (e.g., BTCUSDT)"
-                                }
-                            },
-                            "required": ["symbol"]
-                        }
-                    },
-                    {
-                        "name": "get_exchange_info",
-                        "description": "Get exchange information and trading rules",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {}
-                        }
-                    },
-                    {
-                        "name": "get_klines",
-                        "description": "Get candlestick/kline data",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "symbol": {
-                                    "type": "string",
-                                    "description": "Trading pair symbol"
-                                },
-                                "interval": {
-                                    "type": "string",
-                                    "description": "Kline interval (1m, 5m, 1h, 1d, etc.)"
-                                },
-                                "limit": {
-                                    "type": "integer",
-                                    "description": "Number of klines to return (max 1000)"
-                                }
-                            },
-                            "required": ["symbol", "interval"]
-                        }
-                    }
-                ]
+                "tools": all_tools
             })
         }
         "tools/call" => {
@@ -296,67 +269,95 @@ pub async fn message_post(
                         }
                     }
                 }
+                // SDK tools - call methods directly with deserialized parameters
+                "get_server_time" => {
+                    match state.mcp_server.get_server_time().await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
                 "get_ticker" => {
-                    // Get ticker from Binance API
-                    let symbol = arguments.get("symbol")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("BTCUSDT");
-
-                    match state.binance_client.get_24hr_ticker(symbol).await {
-                        Ok(ticker) => {
-                            serde_json::json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": serde_json::to_string(&ticker).unwrap()
-                                }]
-                            })
-                        }
-                        Err(e) => {
-                            serde_json::json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": format!("{{\"error\": \"Failed to get ticker: {}\"}}", e)
-                                }],
+                    match serde_json::from_value::<SymbolParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_ticker(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                                 "isError": true
                             })
-                        }
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
                     }
                 }
                 "get_klines" => {
-                    // Get klines from Binance API
-                    let symbol = arguments.get("symbol")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("BTCUSDT");
-                    let interval = arguments.get("interval")
-                        .and_then(|i| i.as_str())
-                        .unwrap_or("1d");
-                    let limit = arguments.get("limit")
-                        .and_then(|l| l.as_u64())
-                        .map(|l| l as u32);
-
-                    match state.binance_client.get_klines(symbol, interval, limit).await {
-                        Ok(klines) => {
-                            serde_json::json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": serde_json::to_string(&klines).unwrap()
-                                }]
-                            })
-                        }
-                        Err(e) => {
-                            serde_json::json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": format!("{{\"error\": \"Failed to get klines: {}\"}}", e)
-                                }],
+                    match serde_json::from_value::<KlinesParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_klines(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                                 "isError": true
                             })
-                        }
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_order_book" => {
+                    match serde_json::from_value::<OrderBookParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_order_book(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_recent_trades" => {
+                    match serde_json::from_value::<RecentTradesParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_recent_trades(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_average_price" => {
+                    match serde_json::from_value::<SymbolParam>(arguments.clone()) {
+                        Ok(params) => match state.mcp_server.get_average_price(Parameters(params)).await {
+                            Ok(result) => serde_json::to_value(&result).unwrap(),
+                            Err(e) => serde_json::json!({
+                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                "isError": true
+                            })
+                        },
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "isError": true
+                        })
                     }
                 }
                 _ => {
                     serde_json::json!({
-                        "error": format!("Unknown tool: {}", tool_name)
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"Unknown tool: {}\"}}", tool_name)}],
+                        "isError": true
                     })
                 }
             }
@@ -445,83 +446,58 @@ pub async fn server_info() -> impl IntoResponse {
 ///
 /// Returns JSON-RPC response with list of available MCP tools
 pub async fn tools_list(
-    State(_state): State<SseState>,
+    State(state): State<SseState>,
 ) -> impl IntoResponse {
-    // Return full list of tools including ChatGPT-required search/fetch
+    // Get tools from rmcp SDK router
+    let sdk_tools = state.mcp_server.tool_router.list_all();
+
+    // Add ChatGPT-required tools (search, fetch)
+    let mut all_tools: Vec<serde_json::Value> = sdk_tools
+        .iter()
+        .map(|tool| {
+            serde_json::json!({
+                "name": tool.name,
+                "description": tool.description,
+                "inputSchema": tool.input_schema
+            })
+        })
+        .collect();
+
+    // Prepend ChatGPT tools (search, fetch)
+    all_tools.insert(0, serde_json::json!({
+        "name": "search",
+        "description": "Search for cryptocurrency trading pairs by keyword (e.g., BTC, ETH, USDT). Returns top matching symbols with current prices.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query - cryptocurrency symbol or name (e.g., 'BTC', 'ethereum', 'USDT pairs')"
+                }
+            },
+            "required": ["query"]
+        }
+    }));
+    all_tools.insert(1, serde_json::json!({
+        "name": "fetch",
+        "description": "Fetch detailed market data for a specific trading symbol. Returns comprehensive information including 24h stats, order book depth, and trading rules.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Trading symbol (e.g., BTCUSDT, ETHBTC) - use search to find available symbols"
+                }
+            },
+            "required": ["id"]
+        }
+    }));
+
     let tools = json!({
         "jsonrpc": "2.0",
         "id": 1,
         "result": {
-            "tools": [
-                {
-                    "name": "search",
-                    "description": "Search for cryptocurrency trading pairs by keyword (e.g., BTC, ETH, USDT). Returns top matching symbols with current prices.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "Search query - cryptocurrency symbol or name (e.g., 'BTC', 'ethereum', 'USDT pairs')"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                },
-                {
-                    "name": "fetch",
-                    "description": "Fetch detailed market data for a specific trading symbol. Returns comprehensive information including 24h stats, order book depth, and trading rules.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "string",
-                                "description": "Trading symbol (e.g., BTCUSDT, ETHBTC) - use search to find available symbols"
-                            }
-                        },
-                        "required": ["id"]
-                    }
-                },
-                {
-                    "name": "get_ticker",
-                    "description": "Get current ticker price for a symbol",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "symbol": {
-                                "type": "string",
-                                "description": "Trading pair symbol (e.g., BTCUSDT)"
-                            }
-                        },
-                        "required": ["symbol"]
-                    }
-                },
-                {
-                    "name": "get_exchange_info",
-                    "description": "Get exchange information and trading rules"
-                },
-                {
-                    "name": "get_klines",
-                    "description": "Get candlestick/kline data",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "symbol": {
-                                "type": "string",
-                                "description": "Trading pair symbol"
-                            },
-                            "interval": {
-                                "type": "string",
-                                "description": "Kline interval (1m, 5m, 1h, 1d, etc.)"
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Number of klines to return (max 1000)"
-                            }
-                        },
-                        "required": ["symbol", "interval"]
-                    }
-                }
-            ]
+            "tools": all_tools
         }
     });
 
