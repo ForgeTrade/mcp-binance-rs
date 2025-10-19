@@ -453,6 +453,35 @@ pub async fn message_post(
                         })
                     }
                 }
+                // Orderbook tools - these may return "feature not enabled" error if orderbook feature is disabled
+                "get_orderbook_metrics" => {
+                    // Try to deserialize params, but use empty JSON if deserialization fails
+                    match state.mcp_server.get_orderbook_metrics(Parameters(serde_json::from_value(arguments.clone()).unwrap_or_default())).await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_orderbook_depth" => {
+                    match state.mcp_server.get_orderbook_depth(Parameters(serde_json::from_value(arguments.clone()).unwrap_or_default())).await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
+                "get_orderbook_health" => {
+                    match state.mcp_server.get_orderbook_health().await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
+                        Err(e) => serde_json::json!({
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                            "isError": true
+                        })
+                    }
+                }
                 _ => {
                     serde_json::json!({
                         "content": [{"type": "text", "text": format!("{{\"error\": \"Unknown tool: {}\"}}", tool_name)}],
