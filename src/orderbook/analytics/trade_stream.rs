@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 /// Aggregate trade event from Binance @aggTrade stream

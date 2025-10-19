@@ -4,7 +4,7 @@
 //! Target window: 60 seconds (60 snapshots at 1/sec capture rate).
 
 use super::{
-    storage::{SnapshotStorage, query::query_snapshots_in_window},
+    storage::{query::query_snapshots_in_window, SnapshotStorage},
     types::{FlowDirection, OrderFlowSnapshot},
 };
 use anyhow::{Context, Result};

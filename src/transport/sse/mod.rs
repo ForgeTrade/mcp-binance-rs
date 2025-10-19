@@ -26,14 +26,14 @@
 //! - `handlers`: HTTP endpoint handlers (T020-T022)
 //! - `stream`: SSE event stream writer (T022)
 
-pub mod types;
 pub mod server;
 pub mod session;
+pub mod types;
 //pub mod handlers; // Complex version - deferred to polish phase
 pub mod handlers_simple; // MVP implementation
 
 // Re-export main types for convenience
+pub use handlers_simple::{message_post, server_info, tools_list, SseState};
 pub use server::SseConfig;
 pub use session::SessionManager;
 pub use types::{ConnectionId, SessionMetadata};
-pub use handlers_simple::{SseState, message_post, tools_list, server_info};

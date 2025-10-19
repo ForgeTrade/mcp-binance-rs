@@ -5,8 +5,8 @@
 //! - GET /api/v1/myTrades - Get trade history for a symbol
 
 use axum::{
-    Json,
     extract::{Query, State},
+    Json,
 };
 use serde::Deserialize;
 
@@ -62,7 +62,7 @@ pub async fn get_account(
 ) -> Result<Json<serde_json::Value>, McpError> {
     tracing::info!("GET /api/v1/account");
 
-    let account = state.binance_client.get_account().await?;
+    let account = state.binance_client.get_account(None).await?;
 
     Ok(Json(serde_json::to_value(account)?))
 }
@@ -123,7 +123,7 @@ pub async fn get_my_trades(
 
     let trades = state
         .binance_client
-        .get_my_trades(&params.symbol, params.limit)
+        .get_my_trades(&params.symbol, params.limit, None)
         .await?;
 
     Ok(Json(serde_json::to_value(trades)?))

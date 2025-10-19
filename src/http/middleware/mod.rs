@@ -14,8 +14,8 @@ pub mod cors;
 pub mod rate_limit;
 
 #[cfg(feature = "http-api")]
-pub use auth::{TokenStore, validate_bearer_token};
+pub use auth::{validate_bearer_token, TokenStore};
 #[cfg(feature = "http-api")]
 pub use cors::create_cors_layer;
 #[cfg(feature = "http-api")]
-pub use rate_limit::{RateLimiter, check_rate_limit};
+pub use rate_limit::{check_rate_limit, RateLimiter};

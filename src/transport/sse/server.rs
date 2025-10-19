@@ -4,10 +4,10 @@
 //! integrating it with the BinanceServer tool handlers and managing
 //! keep-alive heartbeats to prevent connection timeouts.
 
+use super::session::SessionManager;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use super::session::SessionManager;
 
 /// SSE server configuration
 ///
@@ -174,7 +174,8 @@ mod tests {
             session_manager.clone(),
             Duration::from_millis(100),
             token_clone,
-        ).await;
+        )
+        .await;
 
         // Let it run for a bit
         tokio::time::sleep(Duration::from_millis(250)).await;

@@ -3,9 +3,9 @@
 //! Limits requests per client to prevent abuse and ensure fair resource usage.
 
 use governor::{
-    Quota, RateLimiter as GovernorRateLimiter,
     clock::DefaultClock,
     state::{InMemoryState, NotKeyed},
+    Quota, RateLimiter as GovernorRateLimiter,
 };
 use std::num::NonZeroU32;
 use std::sync::Arc;

@@ -40,7 +40,11 @@ pub struct SessionMetadata {
 
 impl SessionMetadata {
     /// Creates new session metadata with current timestamp
-    pub fn new(connection_id: ConnectionId, client_addr: SocketAddr, user_agent: Option<String>) -> Self {
+    pub fn new(
+        connection_id: ConnectionId,
+        client_addr: SocketAddr,
+        user_agent: Option<String>,
+    ) -> Self {
         let now = SystemTime::now();
         Self {
             connection_id,
@@ -89,11 +93,7 @@ mod tests {
     #[test]
     fn test_activity_update() {
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
-        let mut session = SessionMetadata::new(
-            "test-conn-id".to_string(),
-            addr,
-            None,
-        );
+        let mut session = SessionMetadata::new("test-conn-id".to_string(), addr, None);
 
         let initial_time = session.last_activity;
         thread::sleep(Duration::from_millis(100));
@@ -105,11 +105,7 @@ mod tests {
     #[test]
     fn test_stale_detection() {
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
-        let session = SessionMetadata::new(
-            "test-conn-id".to_string(),
-            addr,
-            None,
-        );
+        let session = SessionMetadata::new("test-conn-id".to_string(), addr, None);
 
         // Fresh session should not be stale
         assert!(!session.is_stale(30));

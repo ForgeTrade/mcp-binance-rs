@@ -13,6 +13,9 @@ use crate::config::Credentials;
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
 
+#[cfg(feature = "sse")]
+use crate::transport::sse::session::SessionManager;
+
 #[cfg(feature = "orderbook")]
 use std::sync::Arc;
 
@@ -32,6 +35,9 @@ pub struct BinanceServer {
     pub binance_client: BinanceClient,
     /// Optional API credentials loaded from environment
     pub credentials: Option<Credentials>,
+    /// Session manager for per-session credential storage (Feature 011, SSE only)
+    #[cfg(feature = "sse")]
+    pub session_manager: SessionManager,
     /// Tool router for MCP tool routing
     pub tool_router: ToolRouter<Self>,
     /// Prompt router for MCP prompt routing
@@ -87,6 +93,8 @@ impl BinanceServer {
         Self {
             binance_client,
             credentials,
+            #[cfg(feature = "sse")]
+            session_manager: SessionManager::new(),
             tool_router: Self::tool_router(),
             prompt_router: Self::create_prompt_router(),
             #[cfg(feature = "orderbook")]

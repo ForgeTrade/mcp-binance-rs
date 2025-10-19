@@ -9,7 +9,7 @@ use super::{
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, Content};
-use rmcp::{ErrorData, tool};
+use rmcp::{tool, ErrorData};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

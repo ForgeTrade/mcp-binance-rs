@@ -179,8 +179,8 @@ impl From<std::io::Error> for McpError {
 #[cfg(feature = "http-api")]
 impl axum::response::IntoResponse for McpError {
     fn into_response(self) -> axum::response::Response {
-        use axum::Json;
         use axum::http::StatusCode;
+        use axum::Json;
         use serde_json::json;
 
         let (status, error_type, message) = match &self {
@@ -220,6 +220,109 @@ impl axum::response::IntoResponse for McpError {
         }));
 
         (status, body).into_response()
+    }
+}
+
+/// Credential-related errors for API key authentication and session management
+///
+/// This enum provides structured error responses for credential operations with
+/// standardized error codes for programmatic handling (FR-009, FR-013).
+#[derive(Debug, Clone, Error)]
+pub enum CredentialError {
+    /// No credentials configured in session
+    #[error("API credentials not configured for this session")]
+    NotConfigured,
+
+    /// API key format validation failed
+    #[error("Invalid API key format: {0}")]
+    InvalidApiKeyFormat(String),
+
+    /// API secret format validation failed
+    #[error("Invalid API secret format: {0}")]
+    InvalidApiSecretFormat(String),
+
+    /// Invalid environment value
+    #[error("Invalid environment: {0}")]
+    InvalidEnvironment(String),
+
+    /// Binance API rejected credentials
+    #[error("Binance API error: {message}")]
+    BinanceApiError { message: String, code: i32 },
+
+    /// Rate limit exceeded
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded { retry_after: u64 },
+}
+
+impl CredentialError {
+    /// Converts error to structured JSON response (FR-009 compliance)
+    ///
+    /// Returns machine-readable error code and human-readable message per FR-013.
+    ///
+    /// # Error Code Catalog
+    ///
+    /// - `CREDENTIALS_NOT_CONFIGURED`: No credentials in session → Call configure_credentials
+    /// - `INVALID_API_KEY_FORMAT`: API key not 64 alphanumeric → Fix format
+    /// - `INVALID_API_SECRET_FORMAT`: API secret not 64 alphanumeric → Fix format
+    /// - `INVALID_ENVIRONMENT`: Environment not testnet/mainnet → Use valid value
+    /// - `BINANCE_API_ERROR`: Binance API rejected credentials → Check permissions
+    /// - `BINANCE_RATE_LIMIT`: Rate limit exceeded → Wait retry_after seconds
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mcp_binance_server::error::CredentialError;
+    /// use serde_json::json;
+    ///
+    /// let err = CredentialError::NotConfigured;
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "CREDENTIALS_NOT_CONFIGURED",
+    ///         "message": "API credentials not configured for this session. Call configure_credentials first."
+    ///     })
+    /// );
+    ///
+    /// let err = CredentialError::InvalidApiKeyFormat("must be 64 characters".to_string());
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "INVALID_API_KEY_FORMAT",
+    ///         "message": "must be 64 characters"
+    ///     })
+    /// );
+    /// ```
+    pub fn to_json(&self) -> serde_json::Value {
+        use serde_json::json;
+
+        match self {
+            Self::NotConfigured => json!({
+                "error_code": "CREDENTIALS_NOT_CONFIGURED",
+                "message": "API credentials not configured for this session. Call configure_credentials first."
+            }),
+            Self::InvalidApiKeyFormat(reason) => json!({
+                "error_code": "INVALID_API_KEY_FORMAT",
+                "message": reason
+            }),
+            Self::InvalidApiSecretFormat(reason) => json!({
+                "error_code": "INVALID_API_SECRET_FORMAT",
+                "message": reason
+            }),
+            Self::InvalidEnvironment(reason) => json!({
+                "error_code": "INVALID_ENVIRONMENT",
+                "message": reason
+            }),
+            Self::BinanceApiError { message, code } => json!({
+                "error_code": "BINANCE_API_ERROR",
+                "message": message,
+                "binance_code": code
+            }),
+            Self::RateLimitExceeded { retry_after } => json!({
+                "error_code": "BINANCE_RATE_LIMIT",
+                "message": "Rate limit exceeded",
+                "retry_after": retry_after
+            }),
+        }
     }
 }
 

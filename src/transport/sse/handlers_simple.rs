@@ -13,10 +13,10 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 use super::session::SessionManager;
-use crate::server::BinanceServer;
-use crate::tools::chatgpt::{search_symbols, fetch_symbol_details};
 use crate::binance::BinanceClient;
 use crate::server::tool_router::*; // Import all parameter types
+use crate::server::BinanceServer;
+use crate::tools::chatgpt::{fetch_symbol_details, search_symbols};
 use rmcp::handler::server::wrapper::Parameters;
 
 /// Shared state for SSE handlers
@@ -54,7 +54,8 @@ pub async fn message_post(
     let is_initialize = method == "initialize";
 
     // Check for Mcp-Session-Id header (Streamable HTTP spec)
-    let session_id = headers.get("Mcp-Session-Id")
+    let session_id = headers
+        .get("Mcp-Session-Id")
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string());
 
@@ -203,7 +204,10 @@ pub async fn message_post(
         "tools/call" => {
             // Extract tool name and arguments
             let tool_name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            let arguments = params.get("arguments").cloned().unwrap_or(Value::Object(Default::default()));
+            let arguments = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or(Value::Object(Default::default()));
 
             tracing::info!(
                 connection_id = %connection_id,
@@ -216,7 +220,8 @@ pub async fn message_post(
             match tool_name {
                 "search" => {
                     // ChatGPT search tool - search trading symbols
-                    let query = arguments.get("query")
+                    let query = arguments
+                        .get("query")
                         .and_then(|q| q.as_str())
                         .unwrap_or("");
 
@@ -244,9 +249,7 @@ pub async fn message_post(
                 }
                 "fetch" => {
                     // ChatGPT fetch tool - get detailed symbol info
-                    let symbol_id = arguments.get("id")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("");
+                    let symbol_id = arguments.get("id").and_then(|s| s.as_str()).unwrap_or("");
 
                     match fetch_symbol_details(&state.binance_client, symbol_id).await {
                         Ok(details) => {
@@ -270,218 +273,237 @@ pub async fn message_post(
                     }
                 }
                 // SDK tools - call methods directly with deserialized parameters
-                "get_server_time" => {
-                    match state.mcp_server.get_server_time().await {
+                "get_server_time" => match state.mcp_server.get_server_time().await {
+                    Ok(result) => serde_json::to_value(&result).unwrap(),
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
+                "get_ticker" => match serde_json::from_value::<SymbolParam>(arguments.clone()) {
+                    Ok(params) => match state.mcp_server.get_ticker(Parameters(params)).await {
                         Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
-                    }
-                }
-                "get_ticker" => {
-                    match serde_json::from_value::<SymbolParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_ticker(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        }),
+                    },
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
+                "get_klines" => match serde_json::from_value::<KlinesParam>(arguments.clone()) {
+                    Ok(params) => match state.mcp_server.get_klines(Parameters(params)).await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
-                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
-                    }
-                }
-                "get_klines" => {
-                    match serde_json::from_value::<KlinesParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_klines(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
-                        Err(e) => serde_json::json!({
-                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
-                            "isError": true
-                        })
-                    }
-                }
+                        }),
+                    },
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
                 "get_order_book" => {
                     match serde_json::from_value::<OrderBookParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_order_book(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.get_order_book(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_recent_trades" => {
                     match serde_json::from_value::<RecentTradesParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_recent_trades(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.get_recent_trades(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_average_price" => {
                     match serde_json::from_value::<SymbolParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_average_price(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.get_average_price(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_account_info" => {
-                    match state.mcp_server.get_account_info().await {
+                    let params = AccountInfoParam {
+                        session_id: connection_id.clone(),
+                    };
+                    match state.mcp_server.get_account_info(Parameters(params)).await {
                         Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_account_trades" => {
                     match serde_json::from_value::<AccountTradesParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_account_trades(Parameters(params)).await {
+                        Ok(params) => match state
+                            .mcp_server
+                            .get_account_trades(Parameters(params))
+                            .await
+                        {
                             Ok(result) => serde_json::to_value(&result).unwrap(),
                             Err(e) => serde_json::json!({
                                 "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                                 "isError": true
-                            })
+                            }),
                         },
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "place_order" => {
                     match serde_json::from_value::<PlaceOrderParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.place_order(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.place_order(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
-                "get_order" => {
-                    match serde_json::from_value::<OrderParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_order(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                "get_order" => match serde_json::from_value::<OrderParam>(arguments.clone()) {
+                    Ok(params) => match state.mcp_server.get_order(Parameters(params)).await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
-                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
-                    }
-                }
-                "cancel_order" => {
-                    match serde_json::from_value::<OrderParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.cancel_order(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        }),
+                    },
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
+                "cancel_order" => match serde_json::from_value::<OrderParam>(arguments.clone()) {
+                    Ok(params) => match state.mcp_server.cancel_order(Parameters(params)).await {
+                        Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
-                            "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
-                    }
-                }
+                        }),
+                    },
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
                 "get_open_orders" => {
                     match serde_json::from_value::<OpenOrdersParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_open_orders(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.get_open_orders(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_all_orders" => {
                     match serde_json::from_value::<AllOrdersParam>(arguments.clone()) {
-                        Ok(params) => match state.mcp_server.get_all_orders(Parameters(params)).await {
-                            Ok(result) => serde_json::to_value(&result).unwrap(),
-                            Err(e) => serde_json::json!({
-                                "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                                "isError": true
-                            })
-                        },
+                        Ok(params) => {
+                            match state.mcp_server.get_all_orders(Parameters(params)).await {
+                                Ok(result) => serde_json::to_value(&result).unwrap(),
+                                Err(e) => serde_json::json!({
+                                    "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                                    "isError": true
+                                }),
+                            }
+                        }
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"Invalid parameters: {}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 // Orderbook tools - these may return "feature not enabled" error if orderbook feature is disabled
                 "get_orderbook_metrics" => {
                     // Try to deserialize params, but use empty JSON if deserialization fails
-                    match state.mcp_server.get_orderbook_metrics(Parameters(serde_json::from_value(arguments.clone()).unwrap_or_default())).await {
+                    match state
+                        .mcp_server
+                        .get_orderbook_metrics(Parameters(
+                            serde_json::from_value(arguments.clone()).unwrap_or_default(),
+                        ))
+                        .await
+                    {
                         Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
                 "get_orderbook_depth" => {
-                    match state.mcp_server.get_orderbook_depth(Parameters(serde_json::from_value(arguments.clone()).unwrap_or_default())).await {
+                    match state
+                        .mcp_server
+                        .get_orderbook_depth(Parameters(
+                            serde_json::from_value(arguments.clone()).unwrap_or_default(),
+                        ))
+                        .await
+                    {
                         Ok(result) => serde_json::to_value(&result).unwrap(),
                         Err(e) => serde_json::json!({
                             "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
                             "isError": true
-                        })
+                        }),
                     }
                 }
-                "get_orderbook_health" => {
-                    match state.mcp_server.get_orderbook_health().await {
-                        Ok(result) => serde_json::to_value(&result).unwrap(),
-                        Err(e) => serde_json::json!({
-                            "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
-                            "isError": true
-                        })
-                    }
-                }
+                "get_orderbook_health" => match state.mcp_server.get_orderbook_health().await {
+                    Ok(result) => serde_json::to_value(&result).unwrap(),
+                    Err(e) => serde_json::json!({
+                        "content": [{"type": "text", "text": format!("{{\"error\": \"{}\"}}", e)}],
+                        "isError": true
+                    }),
+                },
                 _ => {
                     serde_json::json!({
                         "content": [{"type": "text", "text": format!("{{\"error\": \"Unknown tool: {}\"}}", tool_name)}],
@@ -506,14 +528,18 @@ pub async fn message_post(
 
     // Streamable HTTP transport (March 2025 spec):
     // Check Accept header to determine response format
-    let accept = headers.get(axum::http::header::ACCEPT)
+    let accept = headers
+        .get(axum::http::header::ACCEPT)
         .and_then(|h| h.to_str().ok())
         .unwrap_or("application/json");
 
     // Build response based on Accept header
     let mut response = if accept.contains("text/event-stream") {
         // Client wants SSE stream - return as SSE event
-        let sse_event = format!("data: {}\n\n", serde_json::to_string(&json_rpc_response).unwrap());
+        let sse_event = format!(
+            "data: {}\n\n",
+            serde_json::to_string(&json_rpc_response).unwrap()
+        );
         (
             StatusCode::OK,
             [(axum::http::header::CONTENT_TYPE, "text/event-stream")],
@@ -522,19 +548,14 @@ pub async fn message_post(
             .into_response()
     } else {
         // Client wants JSON (default) - return plain JSON-RPC response
-        (
-            StatusCode::OK,
-            Json(json_rpc_response),
-        )
-            .into_response()
+        (StatusCode::OK, Json(json_rpc_response)).into_response()
     };
 
     // For initialize requests, add Mcp-Session-Id header (Streamable HTTP spec)
     if is_initialize {
-        response.headers_mut().insert(
-            "Mcp-Session-Id",
-            connection_id.parse().unwrap(),
-        );
+        response
+            .headers_mut()
+            .insert("Mcp-Session-Id", connection_id.parse().unwrap());
         tracing::info!(session_id = %connection_id, "Returned Mcp-Session-Id in initialize response");
     }
 
@@ -573,9 +594,7 @@ pub async fn server_info() -> impl IntoResponse {
 /// Tools list endpoint for OpenAI/ChatGPT MCP integration
 ///
 /// Returns JSON-RPC response with list of available MCP tools
-pub async fn tools_list(
-    State(state): State<SseState>,
-) -> impl IntoResponse {
+pub async fn tools_list(State(state): State<SseState>) -> impl IntoResponse {
     // Get tools from rmcp SDK router
     let sdk_tools = state.mcp_server.tool_router.list_all();
 

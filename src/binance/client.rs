@@ -13,6 +13,9 @@ use reqwest::Client;
 use sha2::Sha256;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "sse")]
+use crate::transport::sse::session::Credentials;
+
 type HmacSha256 = Hmac<Sha256>;
 
 /// Binance REST API HTTP client
@@ -124,6 +127,71 @@ impl BinanceClient {
             .api_secret
             .as_ref()
             .ok_or_else(|| McpError::InvalidRequest("API secret not configured".to_string()))?;
+
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            .map_err(|e| McpError::ParseError(format!("Invalid secret key: {}", e)))?;
+
+        mac.update(query_string.as_bytes());
+        let result = mac.finalize();
+        let signature = hex::encode(result.into_bytes());
+
+        Ok(signature)
+    }
+
+    /// Gets API key from session credentials or client credentials
+    ///
+    /// # Arguments
+    /// * `credentials` - Optional session credentials (SSE feature only)
+    ///
+    /// # Returns
+    /// Reference to API key string
+    ///
+    /// # Errors
+    /// Returns error if neither session credentials nor client credentials are configured
+    #[cfg(feature = "sse")]
+    fn get_api_key<'a>(
+        &'a self,
+        credentials: Option<&'a Credentials>,
+    ) -> Result<&'a str, McpError> {
+        // Priority: session credentials > client credentials
+        if let Some(creds) = credentials {
+            Ok(&creds.api_key)
+        } else {
+            self.api_key
+                .as_ref()
+                .map(|k| k.as_str())
+                .ok_or_else(|| McpError::InvalidRequest("API key not configured".to_string()))
+        }
+    }
+
+    /// Generates HMAC-SHA256 signature using session credentials or client credentials
+    ///
+    /// This method supports both session-scoped credentials (Feature 011) and
+    /// environment-based credentials for backward compatibility.
+    ///
+    /// # Arguments
+    /// * `query_string` - URL-encoded query string to sign
+    /// * `credentials` - Optional session credentials (SSE feature only)
+    ///
+    /// # Returns
+    /// Hexadecimal signature string
+    ///
+    /// # Errors
+    /// Returns error if neither session credentials nor client credentials are configured
+    #[cfg(feature = "sse")]
+    fn sign_with_credentials(
+        &self,
+        query_string: &str,
+        credentials: Option<&Credentials>,
+    ) -> Result<String, McpError> {
+        // Priority: session credentials > client credentials
+        let secret = if let Some(creds) = credentials {
+            &creds.api_secret
+        } else {
+            self.api_secret
+                .as_ref()
+                .ok_or_else(|| McpError::InvalidRequest("API secret not configured".to_string()))?
+        };
 
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
             .map_err(|e| McpError::ParseError(format!("Invalid secret key: {}", e)))?;
@@ -389,6 +457,9 @@ impl BinanceClient {
     /// Returns account balances, commission rates, and permissions.
     /// Requires HMAC-SHA256 signature.
     ///
+    /// # Arguments
+    /// * `credentials` - Optional session credentials (SSE feature). Falls back to client credentials.
+    ///
     /// # Returns
     /// * `Ok(AccountInfo)` - Account information including balances
     /// * `Err(McpError)` - Network error, authentication error, or API error
@@ -403,11 +474,51 @@ impl BinanceClient {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = BinanceClient::with_credentials();
-    /// let account = client.get_account().await?;
+    /// let account = client.get_account(None).await?;
     /// println!("Account balances: {:?}", account.balances);
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "sse")]
+    pub async fn get_account(
+        &self,
+        credentials: Option<&Credentials>,
+    ) -> Result<AccountInfo, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        // Build query string with timestamp
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!("timestamp={}", timestamp);
+
+        // Sign the request
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+
+        // Build final URL with signature
+        let url = format!(
+            "{}/api/v3/account?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        // Make signed request with API key header
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let account: AccountInfo = response.json().await?;
+        Ok(account)
+    }
+
+    /// Get account information (non-SSE version for backward compatibility)
+    ///
+    /// Calls GET /api/v3/account (requires API key and secret)
+    #[cfg(not(feature = "sse"))]
     pub async fn get_account(&self) -> Result<AccountInfo, McpError> {
         let api_key = self
             .api_key
@@ -453,10 +564,62 @@ impl BinanceClient {
     /// * `order_type` - Order type: "LIMIT", "MARKET", etc.
     /// * `quantity` - Order quantity as string
     /// * `price` - Order price as string (required for LIMIT orders)
+    /// * `credentials` - Optional session credentials (SSE feature). Falls back to client credentials.
     ///
     /// # Returns
     /// * `Ok(Order)` - Created order details
     /// * `Err(McpError)` - Error if order creation fails
+    #[cfg(feature = "sse")]
+    pub async fn create_order(
+        &self,
+        symbol: &str,
+        side: &str,
+        order_type: &str,
+        quantity: &str,
+        price: Option<&str>,
+        credentials: Option<&Credentials>,
+    ) -> Result<Order, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut params = vec![
+            format!("symbol={}", symbol),
+            format!("side={}", side),
+            format!("type={}", order_type),
+            format!("quantity={}", quantity),
+            format!("timestamp={}", timestamp),
+        ];
+
+        // Add price for LIMIT orders
+        if let Some(p) = price {
+            params.push(format!("price={}", p));
+            params.push("timeInForce=GTC".to_string());
+        }
+
+        let query_string = params.join("&");
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .post(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Create a new order (non-SSE version)
+    #[cfg(not(feature = "sse"))]
     pub async fn create_order(
         &self,
         symbol: &str,
@@ -514,10 +677,48 @@ impl BinanceClient {
     /// # Arguments
     /// * `symbol` - Trading pair (e.g., "BTCUSDT")
     /// * `order_id` - Order ID to cancel
+    /// * `credentials` - Optional session credentials (SSE feature). Falls back to client credentials.
     ///
     /// # Returns
     /// * `Ok(Order)` - Canceled order details
     /// * `Err(McpError)` - Error if cancellation fails
+    #[cfg(feature = "sse")]
+    pub async fn cancel_order(
+        &self,
+        symbol: &str,
+        order_id: i64,
+        credentials: Option<&Credentials>,
+    ) -> Result<Order, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!(
+            "symbol={}&orderId={}&timestamp={}",
+            symbol, order_id, timestamp
+        );
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Cancel an existing order (non-SSE version)
+    #[cfg(not(feature = "sse"))]
     pub async fn cancel_order(&self, symbol: &str, order_id: i64) -> Result<Order, McpError> {
         let api_key = self
             .api_key
@@ -557,10 +758,48 @@ impl BinanceClient {
     /// # Arguments
     /// * `symbol` - Trading pair (e.g., "BTCUSDT")
     /// * `order_id` - Order ID to query
+    /// * `credentials` - Optional session credentials (SSE feature). Falls back to client credentials.
     ///
     /// # Returns
     /// * `Ok(Order)` - Order details
     /// * `Err(McpError)` - Error if query fails
+    #[cfg(feature = "sse")]
+    pub async fn query_order(
+        &self,
+        symbol: &str,
+        order_id: i64,
+        credentials: Option<&Credentials>,
+    ) -> Result<Order, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = format!(
+            "symbol={}&orderId={}&timestamp={}",
+            symbol, order_id, timestamp
+        );
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/order?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let order: Order = response.json().await?;
+        Ok(order)
+    }
+
+    /// Query order status (non-SSE version)
+    #[cfg(not(feature = "sse"))]
     pub async fn query_order(&self, symbol: &str, order_id: i64) -> Result<Order, McpError> {
         let api_key = self
             .api_key
@@ -593,7 +832,54 @@ impl BinanceClient {
         Ok(order)
     }
 
-    /// Get all open orders for a symbol
+    /// Get all open orders for a symbol (SSE version with session credentials)
+    ///
+    /// Calls GET /api/v3/openOrders (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Optional trading pair. If None, returns all open orders.
+    /// * `credentials` - Optional session credentials (takes priority over client credentials)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Order>)` - List of open orders
+    /// * `Err(McpError)` - Error if query fails
+    #[cfg(feature = "sse")]
+    pub async fn get_open_orders(
+        &self,
+        symbol: Option<&str>,
+        credentials: Option<&Credentials>,
+    ) -> Result<Vec<Order>, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let query_string = if let Some(sym) = symbol {
+            format!("symbol={}&timestamp={}", sym, timestamp)
+        } else {
+            format!("timestamp={}", timestamp)
+        };
+
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/openOrders?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let orders: Vec<Order> = response.json().await?;
+        Ok(orders)
+    }
+
+    /// Get all open orders for a symbol (non-SSE version)
     ///
     /// Calls GET /api/v3/openOrders (requires API key and secret)
     ///
@@ -603,6 +889,7 @@ impl BinanceClient {
     /// # Returns
     /// * `Ok(Vec<Order>)` - List of open orders
     /// * `Err(McpError)` - Error if query fails
+    #[cfg(not(feature = "sse"))]
     pub async fn get_open_orders(&self, symbol: Option<&str>) -> Result<Vec<Order>, McpError> {
         let api_key = self
             .api_key
@@ -637,7 +924,56 @@ impl BinanceClient {
         Ok(orders)
     }
 
-    /// Get all orders (active, canceled, or filled) for a symbol
+    /// Get all orders (active, canceled, or filled) for a symbol (SSE version with session credentials)
+    ///
+    /// Calls GET /api/v3/allOrders (requires API key and secret)
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair (e.g., "BTCUSDT")
+    /// * `limit` - Number of orders to return (default 500, max 1000)
+    /// * `credentials` - Optional session credentials (takes priority over client credentials)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Order>)` - List of all orders
+    /// * `Err(McpError)` - Error if query fails
+    #[cfg(feature = "sse")]
+    pub async fn get_all_orders(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+        credentials: Option<&Credentials>,
+    ) -> Result<Vec<Order>, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
+
+        if let Some(lim) = limit {
+            query_string.push_str(&format!("&limit={}", lim));
+        }
+
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/allOrders?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let orders: Vec<Order> = response.json().await?;
+        Ok(orders)
+    }
+
+    /// Get all orders (active, canceled, or filled) for a symbol (non-SSE version)
     ///
     /// Calls GET /api/v3/allOrders (requires API key and secret)
     ///
@@ -648,6 +984,7 @@ impl BinanceClient {
     /// # Returns
     /// * `Ok(Vec<Order>)` - List of all orders
     /// * `Err(McpError)` - Error if query fails
+    #[cfg(not(feature = "sse"))]
     pub async fn get_all_orders(
         &self,
         symbol: &str,
@@ -693,10 +1030,50 @@ impl BinanceClient {
     /// # Arguments
     /// * `symbol` - Trading pair (e.g., "BTCUSDT")
     /// * `limit` - Number of trades to return (default 500, max 1000)
+    /// * `credentials` - Optional session credentials (SSE feature). Falls back to client credentials.
     ///
     /// # Returns
     /// * `Ok(Vec<MyTrade>)` - List of trades
     /// * `Err(McpError)` - Error if query fails
+    #[cfg(feature = "sse")]
+    pub async fn get_my_trades(
+        &self,
+        symbol: &str,
+        limit: Option<u32>,
+        credentials: Option<&Credentials>,
+    ) -> Result<Vec<MyTrade>, McpError> {
+        let api_key = self.get_api_key(credentials)?;
+
+        let timestamp = Self::get_timestamp()?;
+        let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
+
+        if let Some(lim) = limit {
+            query_string.push_str(&format!("&limit={}", lim));
+        }
+
+        let signature = self.sign_with_credentials(&query_string, credentials)?;
+        let url = format!(
+            "{}/api/v3/myTrades?{}&signature={}",
+            self.base_url, query_string, signature
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-MBX-APIKEY", api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(McpError::from(response.error_for_status().unwrap_err()));
+        }
+
+        let trades: Vec<MyTrade> = response.json().await?;
+        Ok(trades)
+    }
+
+    /// Get trade history for the account (non-SSE version)
+    #[cfg(not(feature = "sse"))]
     pub async fn get_my_trades(
         &self,
         symbol: &str,

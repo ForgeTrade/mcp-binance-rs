@@ -4,12 +4,12 @@
 //! VAH (Value Area High), VAL (Value Area Low) for support/resistance identification.
 
 use super::{
-    trade_stream::{AggTrade, connect_trade_stream},
+    trade_stream::{connect_trade_stream, AggTrade},
     types::{VolumeBin, VolumeProfile},
 };
 use anyhow::{Context, Result};
 use chrono::Utc;
-use rust_decimal::{Decimal, prelude::ToPrimitive};
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -282,8 +282,8 @@ mod tests {
         let (poc, vah, val) = find_poc_vah_val(&histogram).unwrap();
 
         assert_eq!(poc, dec!(110)); // Max volume at POC
-        // Algorithm expands from POC (50 volume) to high side first (20 volume)
-        // Total: 70 >= 56 (70% of 80), so VAL=POC and VAH=120
+                                    // Algorithm expands from POC (50 volume) to high side first (20 volume)
+                                    // Total: 70 >= 56 (70% of 80), so VAL=POC and VAH=120
         assert_eq!(val, dec!(110)); // Lower bound (POC itself)
         assert_eq!(vah, dec!(120)); // Upper bound
     }

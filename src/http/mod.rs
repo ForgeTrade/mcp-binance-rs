@@ -25,7 +25,7 @@ use crate::binance::client::BinanceClient;
 use axum::Router;
 #[cfg(feature = "http-api")]
 pub use middleware::{
-    RateLimiter, TokenStore, check_rate_limit, create_cors_layer, validate_bearer_token,
+    check_rate_limit, create_cors_layer, validate_bearer_token, RateLimiter, TokenStore,
 };
 
 /// Maximum concurrent WebSocket connections (per SC-003 requirement)

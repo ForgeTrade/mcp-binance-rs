@@ -8,8 +8,8 @@
 //! - GET /api/v1/allOrders - Get all orders (filled, canceled, etc.)
 
 use axum::{
-    Json,
     extract::{Query, State},
+    Json,
 };
 use serde::Deserialize;
 
@@ -129,6 +129,7 @@ pub async fn create_order(
             &req.order_type,
             &req.quantity,
             req.price.as_deref(),
+            None,
         )
         .await?;
 
@@ -158,7 +159,7 @@ pub async fn cancel_order(
 
     let order = state
         .binance_client
-        .cancel_order(&params.symbol, params.order_id)
+        .cancel_order(&params.symbol, params.order_id, None)
         .await?;
 
     Ok(Json(serde_json::to_value(order)?))
@@ -187,7 +188,7 @@ pub async fn query_order(
 
     let order = state
         .binance_client
-        .query_order(&params.symbol, params.order_id)
+        .query_order(&params.symbol, params.order_id, None)
         .await?;
 
     Ok(Json(serde_json::to_value(order)?))
@@ -213,7 +214,7 @@ pub async fn get_open_orders(
 
     let orders = state
         .binance_client
-        .get_open_orders(params.symbol.as_deref())
+        .get_open_orders(params.symbol.as_deref(), None)
         .await?;
 
     Ok(Json(serde_json::to_value(orders)?))
@@ -251,7 +252,7 @@ pub async fn get_all_orders(
 
     let orders = state
         .binance_client
-        .get_all_orders(&params.symbol, params.limit)
+        .get_all_orders(&params.symbol, params.limit, None)
         .await?;
 
     Ok(Json(serde_json::to_value(orders)?))

@@ -13,6 +13,7 @@ pub mod orderbook;
 pub mod server;
 pub mod tools;
 pub mod transport;
+pub mod types;
 
 // Re-export commonly used types
 pub use error::McpError;

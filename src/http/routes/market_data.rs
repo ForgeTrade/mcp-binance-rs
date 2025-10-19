@@ -8,8 +8,8 @@
 //! - GET /api/v1/trades - Recent trades
 
 use axum::{
-    Json,
     extract::{Query, State},
+    Json,
 };
 use serde::Deserialize;
 

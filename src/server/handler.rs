@@ -5,14 +5,14 @@
 
 #[cfg(feature = "orderbook_analytics")]
 use crate::orderbook::analytics::types::FlowDirection;
-use crate::server::BinanceServer;
 use crate::server::resources::{ResourceCategory, ResourceUri};
 #[cfg(feature = "orderbook_analytics")]
 use crate::server::types::{AdvancedAnalysisArgs, MarketHealthCheckArgs, OrderFlowSnapshotArgs};
 use crate::server::types::{PortfolioRiskArgs, TradingAnalysisArgs};
-use rmcp::handler::server::ServerHandler;
+use crate::server::BinanceServer;
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::wrapper::Parameters;
+use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
     AnnotateAble, ErrorData, GetPromptRequestParam, GetPromptResult, Implementation,
     InitializeResult, ListPromptsResult, ListResourcesResult, PaginatedRequestParam, PromptMessage,
@@ -20,7 +20,7 @@ use rmcp::model::{
     ReadResourceResult, ResourceContents, ResourcesCapability, ServerCapabilities, ToolsCapability,
 };
 use rmcp::service::RequestContext;
-use rmcp::{RoleServer, prompt, prompt_handler, prompt_router, tool_handler};
+use rmcp::{prompt, prompt_handler, prompt_router, tool_handler, RoleServer};
 
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
@@ -265,7 +265,17 @@ impl BinanceServer {
         }
 
         // Fetch account information
-        let account = self.binance_client.get_account().await.map_err(|e| {
+        let account = {
+            #[cfg(feature = "sse")]
+            {
+                self.binance_client.get_account(None).await
+            }
+            #[cfg(not(feature = "sse"))]
+            {
+                self.binance_client.get_account().await
+            }
+        }
+        .map_err(|e| {
             ErrorData::internal_error(format!("Failed to fetch account info: {}", e), None)
         })?;
 
@@ -352,13 +362,19 @@ impl BinanceServer {
         }
 
         // Fetch open orders (all symbols)
-        let orders = self
-            .binance_client
-            .get_open_orders(None)
-            .await
-            .map_err(|e| {
-                ErrorData::internal_error(format!("Failed to fetch open orders: {}", e), None)
-            })?;
+        let orders = {
+            #[cfg(feature = "sse")]
+            {
+                self.binance_client.get_open_orders(None, None).await
+            }
+            #[cfg(not(feature = "sse"))]
+            {
+                self.binance_client.get_open_orders(None).await
+            }
+        }
+        .map_err(|e| {
+            ErrorData::internal_error(format!("Failed to fetch open orders: {}", e), None)
+        })?;
 
         // Format as markdown table (T039, T040)
         let mut content = String::from("# Open Orders\n\n");
@@ -491,7 +507,17 @@ impl BinanceServer {
         Parameters(_args): Parameters<PortfolioRiskArgs>,
     ) -> Result<GetPromptResult, ErrorData> {
         // Fetch account information
-        let account = self.binance_client.get_account().await.map_err(|e| {
+        let account = {
+            #[cfg(feature = "sse")]
+            {
+                self.binance_client.get_account(None).await
+            }
+            #[cfg(not(feature = "sse"))]
+            {
+                self.binance_client.get_account().await
+            }
+        }
+        .map_err(|e| {
             // Convert McpError to ErrorData
             ErrorData::internal_error(format!("Failed to fetch account info: {}", e), None)
         })?;

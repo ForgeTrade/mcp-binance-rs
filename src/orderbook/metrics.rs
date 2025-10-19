@@ -12,8 +12,8 @@ use crate::orderbook::types::{
     OrderBook, OrderBookDepth, OrderBookMetrics, SlippageEstimate, SlippageEstimates, Wall,
     WallSide, Walls,
 };
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 /// Number of top levels to analyze for volume calculations
@@ -146,7 +146,7 @@ fn detect_walls(top_bids: &[(&Decimal, &Decimal)], top_asks: &[(&Decimal, &Decim
         0.0
     } else {
         let mid = all_qtys.len() / 2;
-        if all_qtys.len().is_multiple_of(2) && mid > 0 {
+        if all_qtys.len() % 2 == 0 && mid > 0 {
             (all_qtys[mid - 1] + all_qtys[mid]) / 2.0
         } else {
             all_qtys[mid]

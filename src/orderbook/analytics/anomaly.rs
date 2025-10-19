@@ -6,7 +6,7 @@
 //! - Flash crash risk: >80% depth loss + >10x spread + >90% cancellation rate
 
 use super::{
-    storage::{SnapshotStorage, query::query_snapshots_in_window},
+    storage::{query::query_snapshots_in_window, SnapshotStorage},
     types::{AnomalyType, MarketMicrostructureAnomaly, Severity},
 };
 use anyhow::{Context, Result};

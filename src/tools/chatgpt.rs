@@ -41,9 +41,21 @@ pub struct FetchResult {
 
 /// Common trading symbols for search
 const POPULAR_SYMBOLS: &[&str] = &[
-    "BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT",
-    "XRPUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "LINKUSDT",
-    "LTCUSDT", "AVAXUSDT", "UNIUSDT", "ATOMUSDT", "XLMUSDT",
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "ADAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "DOTUSDT",
+    "MATICUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "AVAXUSDT",
+    "UNIUSDT",
+    "ATOMUSDT",
+    "XLMUSDT",
 ];
 
 /// Search for trading symbols by keyword
@@ -60,9 +72,7 @@ pub async fn search_symbols(
     // Filter popular symbols by query match
     let matched_symbols: Vec<&str> = POPULAR_SYMBOLS
         .iter()
-        .filter(|symbol| {
-            symbol.contains(&query_upper)
-        })
+        .filter(|symbol| symbol.contains(&query_upper))
         .take(10)
         .copied()
         .collect();
@@ -79,10 +89,7 @@ pub async fn search_symbols(
         let (base, quote) = parse_symbol(symbol);
         let title = format!("{}/{}", base, quote);
         let text = format!("Current price: {} {}", ticker.price, quote);
-        let url = format!(
-            "https://www.binance.com/en/trade/{}_{}",
-            base, quote
-        );
+        let url = format!("https://www.binance.com/en/trade/{}_{}", base, quote);
 
         results.push(SearchResult {
             id: symbol.to_string(),
@@ -103,10 +110,7 @@ pub async fn search_symbols(
             let (base, quote) = parse_symbol(symbol);
             let title = format!("{}/{}", base, quote);
             let text = format!("Current price: {} {}", ticker.price, quote);
-            let url = format!(
-                "https://www.binance.com/en/trade/{}_{}",
-                base, quote
-            );
+            let url = format!("https://www.binance.com/en/trade/{}_{}", base, quote);
 
             results.push(SearchResult {
                 id: symbol.to_string(),
@@ -269,9 +273,21 @@ mod tests {
 
     #[test]
     fn test_parse_symbol() {
-        assert_eq!(parse_symbol("BTCUSDT"), ("BTC".to_string(), "USDT".to_string()));
-        assert_eq!(parse_symbol("ETHBTC"), ("ETH".to_string(), "BTC".to_string()));
-        assert_eq!(parse_symbol("BNBBUSD"), ("BNB".to_string(), "BUSD".to_string()));
-        assert_eq!(parse_symbol("ADAETH"), ("ADA".to_string(), "ETH".to_string()));
+        assert_eq!(
+            parse_symbol("BTCUSDT"),
+            ("BTC".to_string(), "USDT".to_string())
+        );
+        assert_eq!(
+            parse_symbol("ETHBTC"),
+            ("ETH".to_string(), "BTC".to_string())
+        );
+        assert_eq!(
+            parse_symbol("BNBBUSD"),
+            ("BNB".to_string(), "BUSD".to_string())
+        );
+        assert_eq!(
+            parse_symbol("ADAETH"),
+            ("ADA".to_string(), "ETH".to_string())
+        );
     }
 }

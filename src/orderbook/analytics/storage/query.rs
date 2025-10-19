@@ -3,7 +3,7 @@
 //! Implements efficient time-range queries using RocksDB prefix scans.
 //! Target latency: <200ms for typical 60-second window queries.
 
-use super::{SnapshotStorage, snapshot::OrderBookSnapshot};
+use super::{snapshot::OrderBookSnapshot, SnapshotStorage};
 use anyhow::{Context, Result};
 use rocksdb::IteratorMode;
 
@@ -50,19 +50,19 @@ pub async fn query_snapshots_in_window(
             }
 
             // Parse timestamp from key "{symbol}:{timestamp}"
-            if let Some(timestamp_str) = key_str.split(':').nth(1)
-                && let Ok(timestamp) = timestamp_str.parse::<i64>()
-            {
-                // Filter by time range
-                if timestamp >= start_timestamp_sec && timestamp <= end_timestamp_sec {
-                    let snapshot = OrderBookSnapshot::from_bytes(&value)
-                        .context("Failed to deserialize snapshot")?;
-                    snapshots.push(snapshot);
-                }
+            if let Some(timestamp_str) = key_str.split(':').nth(1) {
+                if let Ok(timestamp) = timestamp_str.parse::<i64>() {
+                    // Filter by time range
+                    if timestamp >= start_timestamp_sec && timestamp <= end_timestamp_sec {
+                        let snapshot = OrderBookSnapshot::from_bytes(&value)
+                            .context("Failed to deserialize snapshot")?;
+                        snapshots.push(snapshot);
+                    }
 
-                // Optimization: stop if we've passed end timestamp
-                if timestamp > end_timestamp_sec {
-                    break;
+                    // Optimization: stop if we've passed end timestamp
+                    if timestamp > end_timestamp_sec {
+                        break;
+                    }
                 }
             }
         }

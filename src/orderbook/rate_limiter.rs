@@ -4,9 +4,9 @@
 //! Limits: 1000 requests/minute with 30s queue timeout.
 
 use governor::{
-    Quota, RateLimiter as GovernorRateLimiter,
     clock::DefaultClock,
     state::{InMemoryState, NotKeyed},
+    Quota, RateLimiter as GovernorRateLimiter,
 };
 use std::num::NonZeroU32;
 use std::time::Duration;

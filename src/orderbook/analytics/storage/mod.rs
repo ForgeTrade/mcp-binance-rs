@@ -11,7 +11,7 @@ pub mod query;
 pub mod snapshot;
 
 use anyhow::{Context, Result};
-use rocksdb::{DB, Options, WriteBatch};
+use rocksdb::{Options, WriteBatch, DB};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -105,12 +105,13 @@ impl SnapshotStorage {
                 let key_str = String::from_utf8_lossy(&key);
 
                 // Parse timestamp from key format "{symbol}:{timestamp}"
-                if let Some(timestamp_str) = key_str.split(':').nth(1)
-                    && let Ok(timestamp) = timestamp_str.parse::<i64>()
-                    && timestamp < cutoff_timestamp
-                {
-                    batch.delete(&key);
-                    deleted_count += 1;
+                if let Some(timestamp_str) = key_str.split(':').nth(1) {
+                    if let Ok(timestamp) = timestamp_str.parse::<i64>() {
+                        if timestamp < cutoff_timestamp {
+                            batch.delete(&key);
+                            deleted_count += 1;
+                        }
+                    }
                 }
             }
 

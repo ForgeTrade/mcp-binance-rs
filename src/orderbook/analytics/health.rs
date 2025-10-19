@@ -7,7 +7,7 @@
 //! - Update rate (moderate activity = healthy)
 
 use super::{
-    storage::{SnapshotStorage, query::query_snapshots_in_window},
+    storage::{query::query_snapshots_in_window, SnapshotStorage},
     types::MicrostructureHealth,
 };
 use anyhow::{Context, Result};
