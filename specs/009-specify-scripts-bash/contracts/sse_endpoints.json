@@ -1,0 +1,332 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MCP SSE Transport API",
+    "version": "1.0.0",
+    "description": "Server-Sent Events (SSE) transport endpoints for Model Context Protocol server. Enables remote HTTPS access to Binance MCP tools."
+  },
+  "servers": [
+    {
+      "url": "https://mcp-binance-rs.shuttle.app",
+      "description": "Shuttle.dev production deployment"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/mcp/sse": {
+      "get": {
+        "summary": "SSE Connection Handshake",
+        "description": "Establishes Server-Sent Events connection for MCP communication. Returns a stream of SSE events including connection metadata and tool responses.",
+        "operationId": "connectSSE",
+        "tags": ["SSE Transport"],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["text/event-stream"]
+            },
+            "description": "Must be 'text/event-stream' to establish SSE connection"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE connection established successfully. Stream remains open until client disconnects or timeout.",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["text/event-stream"]
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-cache"]
+                }
+              },
+              "Connection": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["keep-alive"]
+                }
+              },
+              "X-Connection-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Unique connection identifier for this SSE session"
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Stream of SSE events in format: 'event: {type}\\ndata: {json}\\n\\n'",
+                  "example": "event: endpoint\ndata: {\"url\":\"http://localhost:8000/mcp/message\"}\n\nevent: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{...}}\n\n"
+                },
+                "examples": {
+                  "connectionEstablished": {
+                    "summary": "Initial connection event",
+                    "value": "event: endpoint\ndata: {\"url\":\"http://localhost:8000/mcp/message\"}\n\n"
+                  },
+                  "toolResponse": {
+                    "summary": "Tool call result",
+                    "value": "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"symbol\\\":\\\"BTCUSDT\\\",\\\"price\\\":\\\"67850.00\\\"}\"}]}}\n\n"
+                  },
+                  "keepAlive": {
+                    "summary": "Heartbeat to prevent timeout",
+                    "value": ": keepalive\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Server overloaded - maximum concurrent connections reached (50)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "max_connections_exceeded",
+                  "message": "Server has reached maximum capacity of 50 concurrent SSE connections"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/message": {
+      "post": {
+        "summary": "Send MCP Message",
+        "description": "Send JSON-RPC 2.0 message to MCP server over existing SSE connection. Response is delivered via SSE event stream.",
+        "operationId": "sendMessage",
+        "tags": ["SSE Transport"],
+        "parameters": [
+          {
+            "name": "X-Connection-ID",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Connection ID received from /mcp/sse handshake"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcRequest"
+              },
+              "examples": {
+                "listTools": {
+                  "summary": "List available tools",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/list",
+                    "params": {}
+                  }
+                },
+                "getTicker": {
+                  "summary": "Get BTCUSDT ticker",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "get_ticker",
+                      "arguments": {
+                        "symbol": "BTCUSDT"
+                      }
+                    }
+                  }
+                },
+                "getOrderbookMetrics": {
+                  "summary": "Get orderbook L1 metrics",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "get_orderbook_metrics",
+                      "arguments": {
+                        "symbol": "ETHUSDT"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Message accepted - response will be delivered via SSE event stream",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["accepted"]
+                    },
+                    "message_id": {
+                      "type": "string",
+                      "description": "JSON-RPC request ID for correlation"
+                    }
+                  },
+                  "required": ["status", "message_id"]
+                },
+                "example": {
+                  "status": "accepted",
+                  "message_id": "1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON-RPC 2.0 message structure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcError"
+                },
+                "example": {
+                  "jsonrpc": "2.0",
+                  "id": null,
+                  "error": {
+                    "code": -32700,
+                    "message": "Parse error",
+                    "data": "Invalid JSON syntax"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Connection ID not found - client must reconnect via /mcp/sse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "connection_not_found",
+                  "message": "No active SSE connection with ID: 550e8400-e29b-41d4-a716-446655440000"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "JsonRpcRequest": {
+        "type": "object",
+        "description": "JSON-RPC 2.0 request message",
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "enum": ["2.0"],
+            "description": "JSON-RPC protocol version"
+          },
+          "id": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "number"}
+            ],
+            "description": "Request identifier for correlation with response"
+          },
+          "method": {
+            "type": "string",
+            "description": "MCP method name (e.g., 'tools/list', 'tools/call')",
+            "examples": ["tools/list", "tools/call", "prompts/list", "resources/list"]
+          },
+          "params": {
+            "type": "object",
+            "description": "Method-specific parameters",
+            "additionalProperties": true
+          }
+        },
+        "required": ["jsonrpc", "id", "method"]
+      },
+      "JsonRpcError": {
+        "type": "object",
+        "description": "JSON-RPC 2.0 error response",
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "enum": ["2.0"]
+          },
+          "id": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "number"},
+              {"type": "null"}
+            ]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer",
+                "description": "JSON-RPC error code",
+                "examples": [-32700, -32600, -32601, -32602, -32603]
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message"
+              },
+              "data": {
+                "description": "Additional error information (optional)",
+                "oneOf": [
+                  {"type": "string"},
+                  {"type": "object"}
+                ]
+              }
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["jsonrpc", "id", "error"]
+      },
+      "Error": {
+        "type": "object",
+        "description": "HTTP-level error response (not JSON-RPC error)",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error code identifier"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error description"
+          }
+        },
+        "required": ["error", "message"]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "SSE Transport",
+      "description": "Server-Sent Events transport endpoints for MCP protocol communication"
+    }
+  ]
+}

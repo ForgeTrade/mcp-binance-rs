@@ -934,4 +934,52 @@ impl BinanceServer {
             messages: vec![PromptMessage::new_text(PromptMessageRole::User, content)],
         })
     }
+
+    /// Stub implementation for advanced_market_analysis when orderbook_analytics feature is disabled
+    #[cfg(not(feature = "orderbook_analytics"))]
+    #[prompt(
+        name = "advanced_market_analysis",
+        description = "Advanced market analysis not available (requires 'orderbook_analytics' feature)"
+    )]
+    pub async fn advanced_market_analysis(
+        &self,
+        _args: Parameters<serde_json::Value>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Advanced analytics features are not enabled in this deployment. This feature requires RocksDB and is not available in cloud deployments.".to_string(),
+            None,
+        ))
+    }
+
+    /// Stub implementation for orderflow_snapshot when orderbook_analytics feature is disabled
+    #[cfg(not(feature = "orderbook_analytics"))]
+    #[prompt(
+        name = "orderflow_snapshot",
+        description = "Order flow snapshot not available (requires 'orderbook_analytics' feature)"
+    )]
+    pub async fn orderflow_snapshot(
+        &self,
+        _args: Parameters<serde_json::Value>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Advanced analytics features are not enabled in this deployment. This feature requires RocksDB and is not available in cloud deployments.".to_string(),
+            None,
+        ))
+    }
+
+    /// Stub implementation for market_health_check when orderbook_analytics feature is disabled
+    #[cfg(not(feature = "orderbook_analytics"))]
+    #[prompt(
+        name = "market_health_check",
+        description = "Market health check not available (requires 'orderbook_analytics' feature)"
+    )]
+    pub async fn market_health_check(
+        &self,
+        _args: Parameters<serde_json::Value>,
+    ) -> Result<GetPromptResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Advanced analytics features are not enabled in this deployment. This feature requires RocksDB and is not available in cloud deployments.".to_string(),
+            None,
+        ))
+    }
 }

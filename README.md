@@ -40,6 +40,46 @@ cargo build --release --features orderbook
 ./target/release/mcp-binance-server --version
 ```
 
+### Feature Flags
+
+The server supports multiple feature flags for different deployment scenarios:
+
+| Feature | Description | Use Case |
+|---------|-------------|----------|
+| `orderbook` | Order book depth tools (WebSocket streaming) | Real-time market depth analysis |
+| `orderbook_analytics` | Advanced analytics (volume profile, order flow) | Professional trading insights |
+| `sse` | Server-Sent Events transport | Remote HTTPS access (local testing) |
+| `shuttle-runtime` | Shuttle.dev cloud deployment | Production cloud deployment |
+| `http-api` | REST API + WebSocket server | Alternative to MCP stdio |
+
+**Common Build Commands:**
+
+```bash
+# Local stdio mode (default)
+cargo build --release --features orderbook
+
+# Local SSE testing
+cargo build --release --features sse,orderbook_analytics
+
+# Shuttle deployment (use shuttle deploy instead)
+shuttle deploy --features shuttle-runtime,orderbook_analytics
+```
+
+### Transport Modes
+
+The server supports two transport modes:
+
+1. **stdio (default)** - Local communication via standard I/O (for Claude Desktop)
+2. **sse** - Remote HTTPS access via Server-Sent Events (for cloud deployment)
+
+```bash
+# Run in stdio mode (default)
+cargo run --features orderbook
+
+# Run in SSE mode
+cargo run --features sse,orderbook -- --mode sse --port 8000
+```
+
 ### Claude Desktop Setup
 
 1. **Get Binance Testnet Credentials**:
@@ -81,6 +121,64 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
    - Look for 🔌 icon in Claude Desktop
    - Click it to see "binance" server
    - Try: *"What's the current price of Bitcoin?"*
+
+## ☁️ Cloud Deployment (Shuttle.dev)
+
+Deploy the MCP server to Shuttle.dev for remote HTTPS access from anywhere.
+
+### Prerequisites
+
+- [Shuttle CLI](https://docs.shuttle.dev/getting-started/installation) installed
+- Shuttle account (free tier available)
+
+### Deployment Steps
+
+```bash
+# 1. Login to Shuttle
+shuttle login
+
+# 2. Deploy with SSE transport (creates HTTPS endpoint automatically)
+shuttle deploy --features shuttle-runtime,orderbook_analytics
+
+# 3. Configure secrets (Binance API credentials)
+shuttle secrets add BINANCE_API_KEY=your_testnet_api_key
+shuttle secrets add BINANCE_API_SECRET=your_testnet_secret_key
+
+# 4. Get deployment URL
+shuttle status
+# Returns: https://mcp-binance-rs.shuttleapp.rs
+
+# 5. View logs
+shuttle logs
+```
+
+### Claude Desktop Remote Configuration
+
+```json
+{
+  "mcpServers": {
+    "binance-cloud": {
+      "url": "https://mcp-binance-rs.shuttleapp.rs/mcp/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+### Local SSE Testing
+
+Test SSE transport locally before deploying:
+
+```bash
+# Start SSE server on localhost
+cargo run --features sse,orderbook_analytics -- --mode sse --port 8000
+
+# Test health endpoint
+curl http://localhost:8000/health
+
+# Test SSE handshake
+curl -H "Accept: text/event-stream" -i http://localhost:8000/mcp/sse
+```
 
 ## 🛠️ Available Tools
 
@@ -946,6 +1044,116 @@ cargo test test_orderbook_metrics --features orderbook
 - Unit tests: OrderBook types, manager, errors (23 tests)
 - Integration tests: WebSocket reconnection, rate limiting, metrics (16 tests)
 - Performance tests: L1 metrics (<200ms P95), L2 depth (<300ms P95) (5 tests)
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### SSE Connection Errors
+
+**Problem**: `503 Service Unavailable` when connecting to SSE endpoint
+
+**Solutions**:
+- Server has reached 50 concurrent connection limit - wait for other connections to close
+- Check server logs: `shuttle logs` (cloud) or check terminal output (local)
+- Restart server to clear stale connections
+
+**Problem**: `404 Not Found` on `/mcp/message` endpoint
+
+**Solutions**:
+- Connection ID expired or invalid
+- Re-establish connection via `/mcp/sse` handshake
+- Check `X-Connection-ID` header is being sent correctly
+
+**Problem**: Connection timeout after 30 seconds
+
+**Solutions**:
+- SSE sessions automatically timeout after 30s of inactivity
+- Implement keepalive pings from client
+- Re-establish connection when needed
+
+#### Shuttle Deployment Issues
+
+**Problem**: `secrets not found` error on deployment
+
+**Solutions**:
+```bash
+# Add required secrets
+shuttle secrets add BINANCE_API_KEY=your_testnet_key
+shuttle secrets add BINANCE_API_SECRET=your_testnet_secret
+
+# Verify secrets are set
+shuttle secrets list
+```
+
+**Problem**: Deployment fails to build
+
+**Solutions**:
+- Ensure Rust 1.90+ installed: `rustc --version`
+- Clear cache: `cargo clean`
+- Retry deployment: `shuttle deploy --features shuttle-runtime,orderbook_analytics`
+
+**Problem**: Server returns `WARN: No API credentials configured`
+
+**Solutions**:
+- This is expected if no secrets are set
+- Authenticated features (trading, account info) will be disabled
+- Market data tools will still work without credentials
+
+#### Rate Limiting
+
+**Problem**: `429 Too Many Requests` from Binance API
+
+**Solutions**:
+- Server has built-in GCRA rate limiter (1000 req/min)
+- Wait 60 seconds and retry
+- Reduce frequency of tool calls
+
+**Problem**: Server queue timeout after 30s
+
+**Solutions**:
+- Too many concurrent requests in queue
+- Reduce parallelism in your queries
+- Wait for previous requests to complete
+
+#### Build Errors
+
+**Problem**: `feature 'orderbook_analytics' requires feature 'orderbook'`
+
+**Solutions**:
+```bash
+# Always include base feature when using analytics
+cargo build --features orderbook_analytics  # ❌ Wrong
+cargo build --features orderbook,orderbook_analytics  # ✅ Correct
+```
+
+**Problem**: RocksDB lock contention in tests
+
+**Solutions**:
+```bash
+# Run tests sequentially (orderbook_analytics uses shared RocksDB)
+cargo test --features orderbook_analytics -- --test-threads=1
+```
+
+### Getting Help
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/tradeforge/mcp-binance-rs/issues)
+- **Logs**: Enable debug logging with `RUST_LOG=debug` environment variable
+- **MCP Protocol**: See [Model Context Protocol docs](https://modelcontextprotocol.io/)
+- **Shuttle Support**: [Shuttle.dev Discord](https://discord.gg/shuttle)
+
+### Deployment Checklist
+
+Before deploying to production:
+
+- [ ] Binance API credentials obtained (use TESTNET for testing)
+- [ ] Shuttle CLI installed and authenticated (`shuttle login`)
+- [ ] Secrets configured (`shuttle secrets add BINANCE_API_KEY=...`)
+- [ ] Local testing completed (`cargo run --features sse -- --mode sse`)
+- [ ] Health endpoint verified (`curl https://your-app.shuttleapp.rs/health`)
+- [ ] SSE handshake tested (`curl -H "Accept: text/event-stream" https://your-app.shuttleapp.rs/mcp/sse`)
+- [ ] Claude Desktop configured with remote URL
+- [ ] Logs monitored after deployment (`shuttle logs`)
 
 ## 🤝 Contributing
 

@@ -1,0 +1,5 @@
+[project]
+name = "mcp-binance-rs"
+
+[build]
+builder = "shuttle"

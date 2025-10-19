@@ -540,4 +540,46 @@ impl BinanceServer {
             response_json.to_string(),
         )]))
     }
+
+    /// Stub implementation for get_orderbook_metrics when orderbook feature is disabled
+    #[cfg(not(feature = "orderbook"))]
+    #[tool(
+        description = "Order book metrics not available (requires 'orderbook' feature)"
+    )]
+    pub async fn get_orderbook_metrics(
+        &self,
+        _params: Parameters<serde_json::Value>,
+    ) -> Result<CallToolResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Order book features are not enabled in this deployment. Rebuild with --features orderbook".to_string(),
+            None,
+        ))
+    }
+
+    /// Stub implementation for get_orderbook_depth when orderbook feature is disabled
+    #[cfg(not(feature = "orderbook"))]
+    #[tool(
+        description = "Order book depth not available (requires 'orderbook' feature)"
+    )]
+    pub async fn get_orderbook_depth(
+        &self,
+        _params: Parameters<serde_json::Value>,
+    ) -> Result<CallToolResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Order book features are not enabled in this deployment. Rebuild with --features orderbook".to_string(),
+            None,
+        ))
+    }
+
+    /// Stub implementation for get_orderbook_health when orderbook feature is disabled
+    #[cfg(not(feature = "orderbook"))]
+    #[tool(
+        description = "Order book health not available (requires 'orderbook' feature)"
+    )]
+    pub async fn get_orderbook_health(&self) -> Result<CallToolResult, ErrorData> {
+        Err(ErrorData::internal_error(
+            "Order book features are not enabled in this deployment. Rebuild with --features orderbook".to_string(),
+            None,
+        ))
+    }
 }

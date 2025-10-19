@@ -1,8 +1,8 @@
 [package]
 name = "mcp-binance-server"
 version = "0.1.0"
-edition = "2024"
-rust-version = "1.90"
+edition = "2021"
+rust-version = "1.75"
 authors = ["Tradeforge Team"]
 license = "MIT"
 description = "MCP server for Binance API integration"
@@ -20,11 +20,13 @@ path = "src/lib.rs"
 
 [dependencies]
 # MCP Server SDK - Official Rust implementation
-# Provides ServerHandler trait, tool macros, stdio transport
-rmcp = { version = "0.8.1", features = ["server", "macros", "transport-io"] }
+# Provides ServerHandler trait, tool macros, stdio transport, SSE server
+rmcp = { version = "0.8.1", features = ["server", "macros", "transport-io", "transport-sse-server"] }
 
 # Async runtime - Required by rmcp, industry standard
 tokio = { version = "1.48", features = ["full"] }
+tokio-util = "0.7"
+tokio-stream = "0.1"
 
 # HTTP client - For Binance API calls
 # Features: json (auto serialize/deserialize), rustls-tls (TLS support)
@@ -53,7 +55,7 @@ hex = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP Server - axum web framework (optional feature)
-axum = { version = "0.8.6", optional = true, features = ["ws"] }
+axum = { version = "0.8.6", optional = true, features = ["ws", "macros"] }
 
 # WebSocket Client - tokio-tungstenite for Binance streams (optional feature)
 tokio-tungstenite = { version = "0.28.0", optional = true, features = ["rustls-tls-webpki-roots"] }
@@ -78,12 +80,24 @@ rmp-serde = { version = "1.3.0", optional = true }
 # UUID v4 for anomaly/event IDs
 uuid = { version = "1.11", features = ["v4", "serde"], optional = true }
 
+# Shuttle deployment platform - Optional for cloud deployment
+shuttle-runtime = { version = "0.56.0", optional = true }
+shuttle-axum = { version = "0.56.0", optional = true }
+
 [features]
 default = []
 http-api = ["axum", "tower", "tower-http", "governor"]
 websocket = ["tokio-tungstenite", "futures-util"]
 orderbook = ["tokio-tungstenite", "futures-util", "rust_decimal", "governor"]
 orderbook_analytics = ["orderbook", "rocksdb", "statrs", "rmp-serde", "uuid"]
+# SSE transport for cloud deployment (T003, T032)
+# Base SSE without Shuttle (for local testing): cargo run --features sse
+# With Shuttle runtime (for deployment): shuttle deploy (automatically includes shuttle-runtime)
+sse = ["http-api", "uuid", "futures-util"]
+shuttle-runtime = ["sse", "dep:shuttle-runtime", "dep:shuttle-axum"]
+# Shuttle.dev automatically enables this feature and disables default features
+# This builds only SSE transport without heavy orderbook_analytics dependencies (RocksDB)
+shuttle = ["shuttle-runtime"]
 
 [profile.release]
 lto = true
@@ -118,6 +132,9 @@ futures-util = "0.3"
 # Orderbook analytics test dependencies
 tempfile = "3.14"
 rust_decimal_macros = "1.37"
+
+# SSE transport test dependencies
+uuid = { version = "1.11", features = ["v4"] }
 
 [profile.test]
 opt-level = 1

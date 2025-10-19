@@ -167,6 +167,7 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
         .with_state(state.clone());
 
     // Build main router with health check and API routes
+    #[allow(unused_mut)]
     let mut router = Router::new()
         // Health check (no auth required)
         .route("/health", axum::routing::get(|| async { "OK" }))
@@ -186,6 +187,16 @@ pub fn create_router(token_store: TokenStore, rate_limiter: RateLimiter) -> Rout
                 axum::routing::get(websocket::depth_handler),
             )
             .route("/ws/user", axum::routing::get(websocket::user_data_handler));
+    }
+
+    // Add SSE routes for remote MCP access (T011 - Feature 009)
+    // SSE endpoints are implemented in transport::sse::handlers module
+    // Routes will be integrated in Phase 3 (T020-T022) when handlers are ready
+    #[cfg(feature = "sse")]
+    {
+        // TODO: Merge SSE router when handlers module is implemented
+        // Example: router = router.merge(crate::transport::sse::create_sse_router(state));
+        tracing::debug!("SSE feature enabled - routes will be added in Phase 3");
     }
 
     router

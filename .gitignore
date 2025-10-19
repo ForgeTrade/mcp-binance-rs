@@ -47,3 +47,9 @@ tests/tmp/
 
 # Skills directory for reference/learning
 skills/
+
+# Shuttle deployment artifacts
+.shuttle/
+
+# RocksDB data directories (Feature 008 orderbook analytics)
+data/

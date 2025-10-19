@@ -28,3 +28,7 @@ pub mod websocket;
 // Orderbook feature tests
 #[cfg(feature = "orderbook")]
 pub mod orderbook;
+
+// SSE transport tests (Feature 009)
+#[cfg(feature = "sse")]
+mod sse_transport_test;
