@@ -164,6 +164,37 @@ impl BinanceClient {
         }
     }
 
+    /// Gets base URL from session credentials environment or client base URL
+    ///
+    /// When session credentials are provided (Feature 011), uses the environment-specific
+    /// base URL (testnet.binance.vision for Testnet, api.binance.com for Mainnet).
+    /// Otherwise, falls back to client's configured base URL.
+    ///
+    /// # Arguments
+    /// * `credentials` - Optional session credentials (SSE feature only)
+    ///
+    /// # Returns
+    /// Reference to base URL string
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // With testnet credentials: returns "https://testnet.binance.vision"
+    /// let url = client.get_base_url(Some(&testnet_creds));
+    ///
+    /// // Without credentials: returns "https://api.binance.com" (client default)
+    /// let url = client.get_base_url(None);
+    /// ```
+    #[cfg(feature = "sse")]
+    fn get_base_url<'a>(&'a self, credentials: Option<&'a Credentials>) -> &'a str {
+        // Priority: session credentials environment > client base_url
+        if let Some(creds) = credentials {
+            creds.environment.base_url()
+        } else {
+            &self.base_url
+        }
+    }
+
     /// Generates HMAC-SHA256 signature using session credentials or client credentials
     ///
     /// This method supports both session-scoped credentials (Feature 011) and
@@ -485,6 +516,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<AccountInfo, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         // Build query string with timestamp
         let timestamp = Self::get_timestamp()?;
@@ -496,7 +528,17 @@ impl BinanceClient {
         // Build final URL with signature
         let url = format!(
             "{}/api/v3/account?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
+        );
+
+        // Log environment being used (Feature 011 - T040)
+        let env_name = credentials
+            .map(|c| c.environment.to_string())
+            .unwrap_or_else(|| "mainnet (default)".to_string());
+        tracing::debug!(
+            endpoint = "GET /api/v3/account",
+            environment = %env_name,
+            "Executing authenticated request"
         );
 
         // Make signed request with API key header
@@ -580,6 +622,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Order, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let mut params = vec![
@@ -600,7 +643,17 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/order?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
+        );
+
+        // Log environment being used (Feature 011 - T040)
+        let env_name = credentials
+            .map(|c| c.environment.to_string())
+            .unwrap_or_else(|| "mainnet (default)".to_string());
+        tracing::debug!(
+            endpoint = "POST /api/v3/order",
+            environment = %env_name,
+            "Executing authenticated request"
         );
 
         let response = self
@@ -690,6 +743,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Order, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let query_string = format!(
@@ -699,7 +753,7 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/order?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
         );
 
         let response = self
@@ -771,6 +825,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Order, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let query_string = format!(
@@ -780,7 +835,7 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/order?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
         );
 
         let response = self
@@ -850,6 +905,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Vec<Order>, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let query_string = if let Some(sym) = symbol {
@@ -861,7 +917,7 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/openOrders?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
         );
 
         let response = self
@@ -944,6 +1000,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Vec<Order>, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
@@ -955,7 +1012,7 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/allOrders?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
         );
 
         let response = self
@@ -1043,6 +1100,7 @@ impl BinanceClient {
         credentials: Option<&Credentials>,
     ) -> Result<Vec<MyTrade>, McpError> {
         let api_key = self.get_api_key(credentials)?;
+        let base_url = self.get_base_url(credentials);
 
         let timestamp = Self::get_timestamp()?;
         let mut query_string = format!("symbol={}&timestamp={}", symbol, timestamp);
@@ -1054,7 +1112,7 @@ impl BinanceClient {
         let signature = self.sign_with_credentials(&query_string, credentials)?;
         let url = format!(
             "{}/api/v3/myTrades?{}&signature={}",
-            self.base_url, query_string, signature
+            base_url, query_string, signature
         );
 
         let response = self

@@ -121,9 +121,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T039 [US4] Update BinanceClient::signed_request() in src/binance/client.rs to use credentials.environment.base_url() when credentials provided
-- [ ] T040 [US4] Add environment indicator to BinanceClient response logging in src/binance/client.rs (log which environment was used for request)
-- [ ] T041 [US4] Verify public tools (get_ticker, get_klines, get_order_book, get_average_price, get_recent_trades) in src/tools/ always use mainnet regardless of configured credentials
+- [X] T039 [US4] Update BinanceClient::signed_request() in src/binance/client.rs to use credentials.environment.base_url() when credentials provided
+- [X] T040 [US4] Add environment indicator to BinanceClient response logging in src/binance/client.rs (log which environment was used for request)
+- [X] T041 [US4] Verify public tools (get_ticker, get_klines, get_order_book, get_average_price, get_recent_trades) in src/tools/ always use mainnet regardless of configured credentials
 
 **Checkpoint**: All user stories are now independently functional
 
