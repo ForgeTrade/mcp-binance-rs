@@ -301,7 +301,9 @@ impl SessionManager {
     pub async fn store_credentials(&self, credentials: Credentials) -> bool {
         let session_id = credentials.session_id.clone();
 
-        // Verify session exists before storing credentials
+        // STEP 1: Verify session exists before storing credentials
+        // Security: Prevents credential storage for non-existent or expired sessions
+        // Locking: Uses short-lived read lock to minimize contention
         {
             let sessions = self.sessions.read().await;
             if !sessions.contains_key(&session_id) {
@@ -311,11 +313,17 @@ impl SessionManager {
                 );
                 return false;
             }
+            // Read lock released here - important to not hold multiple locks simultaneously
         }
 
+        // STEP 2: Store credentials with write lock
+        // Locking strategy: Separate scope from session check to avoid deadlocks
+        // Security: Credentials stored in memory only (NFR-002), never persisted to disk
         let mut creds = self.credentials.write().await;
         let is_replacement = creds.contains_key(&session_id);
 
+        // Last-write-wins behavior: If credentials already exist, replace them
+        // This allows users to reconfigure without explicitly revoking first
         if is_replacement {
             tracing::warn!(
                 session_id = %session_id,
@@ -346,8 +354,13 @@ impl SessionManager {
     ///
     /// `Some(Credentials)` if credentials exist, `None` otherwise
     pub async fn get_credentials(&self, session_id: &str) -> Option<Credentials> {
+        // Locking strategy: Short-lived read lock + clone pattern
+        // Why clone? Allows HTTP requests to use credentials without holding lock,
+        // preventing lock contention during slow network operations (100ms+ latency).
+        // Trade-off: Small memory overhead (3 strings ~200 bytes) for better concurrency.
         let creds = self.credentials.read().await;
         creds.get(session_id).cloned()
+        // Read lock released immediately after clone - HTTP requests execute lock-free
     }
 
     /// Revokes credentials from a session (Feature 011 - T009)
@@ -363,6 +376,9 @@ impl SessionManager {
     ///
     /// `true` if credentials existed and were removed, `false` if no credentials found
     pub async fn revoke_credentials(&self, session_id: &str) -> bool {
+        // Locking strategy: Write lock required for HashMap::remove()
+        // Security: Immediate removal from memory ensures credentials no longer usable
+        // Idempotent: Safe to call multiple times - returns false if already removed
         let mut creds = self.credentials.write().await;
         let removed = creds.remove(session_id).is_some();
 
@@ -372,6 +388,7 @@ impl SessionManager {
                 "Credentials revoked from session"
             );
         } else {
+            // Not an error - idempotent behavior allows safe retry
             tracing::debug!(
                 session_id = %session_id,
                 "No credentials to revoke for session"
@@ -379,6 +396,8 @@ impl SessionManager {
         }
 
         removed
+        // Write lock released - credentials permanently removed from memory
+        // Session continues to exist and can be used for public API calls
     }
 }
 

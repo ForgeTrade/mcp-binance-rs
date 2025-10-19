@@ -133,13 +133,13 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T042 [P] Add comprehensive error_code examples to CredentialError::to_json() documentation in src/error/mod.rs
-- [ ] T043 Add inline code documentation to SessionManager credential methods in src/transport/sse/session.rs
-- [ ] T044 Verify API secrets are never logged by checking tracing statements in src/tools/credentials.rs and src/binance/client.rs
-- [ ] T045 [P] Add quickstart.md validation: Run Scenario 1 (Configure Testnet Credentials) manually and verify all 4 steps work
-- [ ] T046 [P] Add quickstart.md validation: Run Scenario 3 (Handle Invalid Credentials) test cases 3a, 3b, 3c and verify error codes match
-- [ ] T047 Update CLAUDE.md with Feature 011 completion date and credential management patterns
-- [ ] T048 Code cleanup: Remove any unused imports from src/tools/credentials.rs and src/error/mod.rs
+- [X] T042 [P] Add comprehensive error_code examples to CredentialError::to_json() documentation in src/error/mod.rs
+- [X] T043 Add inline code documentation to SessionManager credential methods in src/transport/sse/session.rs
+- [X] T044 Verify API secrets are never logged by checking tracing statements in src/tools/credentials.rs and src/binance/client.rs
+- [X] T045 [P] Add quickstart.md validation: Run Scenario 1 (Configure Testnet Credentials) manually and verify all 4 steps work
+- [X] T046 [P] Add quickstart.md validation: Run Scenario 3 (Handle Invalid Credentials) test cases 3a, 3b, 3c and verify error codes match
+- [X] T047 Update CLAUDE.md with Feature 011 completion date and credential management patterns
+- [X] T048 Code cleanup: Remove any unused imports from src/tools/credentials.rs and src/error/mod.rs
 
 ---
 

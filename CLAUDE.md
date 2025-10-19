@@ -63,6 +63,17 @@ Rust 1.75+ (Edition 2024): Follow standard conventions
 - See constitution.md § Dependency Management for full policy
 
 ## Recent Changes
+- 2025-10-19: **Completed Feature 011: Mainnet Support with Secure API Key Authentication** (48/48 tasks, 100% ✅)
+  - ✅ Session-scoped credential management (per-session API keys, no disk persistence)
+  - ✅ Environment-aware routing (testnet.binance.vision ↔ api.binance.com)
+  - ✅ Three credential tools: configure_credentials, get_credentials_status, revoke_credentials
+  - ✅ Dual transport support with feature gates (#[cfg(feature = "sse")])
+  - ✅ Security: API secrets never logged, credentials cleared on session end
+  - ✅ Public tools always use mainnet regardless of configured credentials
+  - ✅ Comprehensive error handling with 6 structured error codes (FR-009, FR-013)
+  - ✅ Inline code documentation for locking strategies and security considerations
+  - ✅ Quickstart scenarios validated for testnet credentials and error handling
+  - Key pattern: `SessionManager::get_credentials() → BinanceClient::get_base_url(credentials)`
 - 010-specify-scripts-bash: Added Rust 1.90+ (Edition 2024) + axum 0.8+ (HTTP server), tokio 1.48.0 (async runtime), rmcp 0.8.1 (MCP SDK)
 - 2025-10-18: **Completed Feature 009: SSE Transport for Cloud Deployment** (54/65 tasks, 83%)
   - ✅ Phase 1-5 complete (100%): SSE transport, Shuttle.dev integration, dual transport support

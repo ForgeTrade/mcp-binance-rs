@@ -274,6 +274,7 @@ impl CredentialError {
     /// use mcp_binance_server::error::CredentialError;
     /// use serde_json::json;
     ///
+    /// // Example 1: No credentials configured
     /// let err = CredentialError::NotConfigured;
     /// assert_eq!(
     ///     err.to_json(),
@@ -283,12 +284,58 @@ impl CredentialError {
     ///     })
     /// );
     ///
+    /// // Example 2: Invalid API key format
     /// let err = CredentialError::InvalidApiKeyFormat("must be 64 characters".to_string());
     /// assert_eq!(
     ///     err.to_json(),
     ///     json!({
     ///         "error_code": "INVALID_API_KEY_FORMAT",
     ///         "message": "must be 64 characters"
+    ///     })
+    /// );
+    ///
+    /// // Example 3: Invalid API secret format
+    /// let err = CredentialError::InvalidApiSecretFormat("contains invalid characters".to_string());
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "INVALID_API_SECRET_FORMAT",
+    ///         "message": "contains invalid characters"
+    ///     })
+    /// );
+    ///
+    /// // Example 4: Invalid environment
+    /// let err = CredentialError::InvalidEnvironment("must be 'testnet' or 'mainnet'".to_string());
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "INVALID_ENVIRONMENT",
+    ///         "message": "must be 'testnet' or 'mainnet'"
+    ///     })
+    /// );
+    ///
+    /// // Example 5: Binance API error
+    /// let err = CredentialError::BinanceApiError {
+    ///     message: "Invalid API-key, IP, or permissions for action".to_string(),
+    ///     code: -2015
+    /// };
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "BINANCE_API_ERROR",
+    ///         "message": "Invalid API-key, IP, or permissions for action",
+    ///         "binance_code": -2015
+    ///     })
+    /// );
+    ///
+    /// // Example 6: Rate limit exceeded
+    /// let err = CredentialError::RateLimitExceeded { retry_after: 60 };
+    /// assert_eq!(
+    ///     err.to_json(),
+    ///     json!({
+    ///         "error_code": "BINANCE_RATE_LIMIT",
+    ///         "message": "Rate limit exceeded",
+    ///         "retry_after": 60
     ///     })
     /// );
     /// ```
