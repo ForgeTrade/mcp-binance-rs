@@ -74,5 +74,5 @@ curl -X POST https://server/mcp \
 - Shuttle.dev cloud deployment support
 - SSE transport with session management
 
-[Unreleased]: https://github.com/user/mcp-binance-rs/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/user/mcp-binance-rs/releases/tag/v0.1.0
+[Unreleased]: https://github.com/forgequant/mcp-provider-binance/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/forgequant/mcp-provider-binance/releases/tag/v0.1.0

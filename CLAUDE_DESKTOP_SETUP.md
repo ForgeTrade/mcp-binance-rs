@@ -23,7 +23,7 @@ MCP Binance Server is now configured and ready to use with Claude Desktop!
         "--features",
         "orderbook",
         "--manifest-path",
-        "/path/to/mcp-binance-rs/Cargo.toml"
+        "/path/to/mcp-provider-binance/Cargo.toml"
       ],
       "env": {
         "BINANCE_API_KEY": "your_testnet_api_key",
@@ -120,7 +120,7 @@ Try these in Claude Desktop chat:
 
 2. Test server manually:
    ```bash
-   cd /path/to/mcp-binance-rs
+   cd /path/to/mcp-provider-binance
    cargo run --release --features orderbook
    ```
 

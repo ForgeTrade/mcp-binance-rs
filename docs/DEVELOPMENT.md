@@ -99,7 +99,7 @@ RUST_LOG=mcp_binance_server=debug,rmcp=info cargo run
 ## Project Structure
 
 ```
-mcp-binance-rs/
+mcp-provider-binance/
 ├── Cargo.toml              # Dependencies and metadata
 ├── src/
 │   ├── main.rs             # Binary entry point

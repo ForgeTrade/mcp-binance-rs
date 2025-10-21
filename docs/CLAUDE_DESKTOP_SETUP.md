@@ -21,7 +21,7 @@ Claude Desktop reads MCP server configuration from:
 ### 1. Build the Server
 
 ```bash
-cd /path/to/mcp-binance-rs
+cd /path/to/mcp-provider-binance
 cargo build --release
 ```
 
@@ -38,7 +38,7 @@ realpath target/release/mcp-binance-server
 
 # Or use pwd
 cd target/release && pwd
-# Result: /path/to/mcp-binance-rs/target/release
+# Result: /path/to/mcp-provider-binance/target/release
 ```
 
 **Important**: Claude Desktop requires an **absolute path**, not relative paths like `./target/release/...`
@@ -76,7 +76,7 @@ touch ~/Library/Application\ Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "binance": {
-      "command": "/path/to/mcp-binance-rs/target/release/mcp-binance-server",
+      "command": "/path/to/mcp-provider-binance/target/release/mcp-binance-server",
       "env": {
         "BINANCE_API_KEY": "your_actual_api_key_here",
         "BINANCE_SECRET_KEY": "your_actual_secret_key_here",

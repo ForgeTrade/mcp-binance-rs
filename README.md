@@ -30,8 +30,8 @@ A powerful Model Context Protocol (MCP) server that brings Binance cryptocurrenc
 
 ```bash
 # Clone the repository
-git clone https://github.com/tradeforge/mcp-binance-rs.git
-cd mcp-binance-rs
+git clone https://github.com/forgequant/mcp-provider-binance.git
+cd mcp-provider-binance
 
 # Build the MCP server (with orderbook features)
 cargo build --release --features orderbook
@@ -102,7 +102,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--features",
         "orderbook",
         "--manifest-path",
-        "/path/to/mcp-binance-rs/Cargo.toml"
+        "/path/to/mcp-provider-binance/Cargo.toml"
       ],
       "env": {
         "BINANCE_API_KEY": "your_testnet_api_key",
@@ -146,7 +146,7 @@ shuttle secrets add BINANCE_API_SECRET=your_testnet_secret_key
 
 # 4. Get deployment URL
 shuttle status
-# Returns: https://mcp-binance-rs.shuttleapp.rs
+# Returns: https://mcp-provider-binance.shuttleapp.rs
 
 # 5. View logs
 shuttle logs
@@ -158,7 +158,7 @@ shuttle logs
 {
   "mcpServers": {
     "binance-cloud": {
-      "url": "https://mcp-binance-rs.shuttleapp.rs/mcp/sse",
+      "url": "https://mcp-provider-binance.shuttleapp.rs/mcp/sse",
       "transport": "sse"
     }
   }
@@ -1137,7 +1137,7 @@ cargo test --features orderbook_analytics -- --test-threads=1
 
 ### Getting Help
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/tradeforge/mcp-binance-rs/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/forgequant/mcp-provider-binance/issues)
 - **Logs**: Enable debug logging with `RUST_LOG=debug` environment variable
 - **MCP Protocol**: See [Model Context Protocol docs](https://modelcontextprotocol.io/)
 - **Shuttle Support**: [Shuttle.dev Discord](https://discord.gg/shuttle)
@@ -1179,11 +1179,11 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
-- **GitHub**: [tradeforge/mcp-binance-rs](https://github.com/tradeforge/mcp-binance-rs)
+- **GitHub**: [forgequant/mcp-provider-binance](https://github.com/forgequant/mcp-provider-binance)
 - **Binance Testnet**: [testnet.binance.vision](https://testnet.binance.vision/)
 - **MCP Protocol**: [modelcontextprotocol.io](https://modelcontextprotocol.io/)
-- **Issues**: [GitHub Issues](https://github.com/tradeforge/mcp-binance-rs/issues)
+- **Issues**: [GitHub Issues](https://github.com/forgequant/mcp-provider-binance/issues)
 
 ---
 
-Made with ❤️ using Rust and MCP | [Report Bug](https://github.com/tradeforge/mcp-binance-rs/issues) | [Request Feature](https://github.com/tradeforge/mcp-binance-rs/issues)
+Made with ❤️ using Rust and MCP | [Report Bug](https://github.com/forgequant/mcp-provider-binance/issues) | [Request Feature](https://github.com/forgequant/mcp-provider-binance/issues)

@@ -122,7 +122,7 @@
 - [ ] T035 [P] Update README.md if SSE transport documentation needs cleanup - DEFERRED (manual review recommended)
 - [ ] T036 Run all quickstart.md scenarios (1-9) - DEFERRED (manual verification recommended)
 - [X] T037 Run integration tests: `cargo test --features sse` - COMPLETED (33/34 pass, 1 pre-existing failure)
-- [X] T038 Deploy to Shuttle.dev: `shuttle deploy --name mcp-binance-rs` - COMPLETED (depl_01K7W9AET7RNZ65M3BRT8DHBE0)
+- [X] T038 Deploy to Shuttle.dev: `shuttle deploy --name mcp-provider-binance` - COMPLETED (depl_01K7W9AET7RNZ65M3BRT8DHBE0)
 - [X] T039 Verify production deployment: test ChatGPT connector against deployed URL - COMPLETED (initialize works, returns Mcp-Session-Id header)
 - [X] T040 Code review: verify 5-minute comprehension time (SC-005) - COMPLETED (code is clean, well-documented, ~47 lines removed)
 - [X] T041 Git commit cleanup changes with message: "refactor: Remove legacy SSE handshake code, consolidate to Streamable HTTP" - COMPLETED (commit b59bc18)

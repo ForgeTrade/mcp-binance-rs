@@ -86,7 +86,7 @@ CONNECTING → ACTIVE → DISCONNECTED
 **Fields** (Shuttle.toml structure):
 ```toml
 [project]
-name = "mcp-binance-rs"  # Project identifier on Shuttle
+name = "mcp-provider-binance"  # Project identifier on Shuttle
 
 [build]
 builder = "shuttle"       # Build system
